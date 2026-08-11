@@ -4,10 +4,43 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 )
 
 type DIDPrism string
+
+// Types for updating a DID Prism document (add or remove a key)
+type actionType int
+
+const (
+	addKey int = iota
+	removeKey
+)
+
+func (actT actionType) string() (string, error) {
+	strings := [2]string{"ADD_KEY", "REMOVE_KEY"}
+
+	if actT < 0 || int(actT) >= len(strings) {
+		return "", errors.New("invalid action")
+	}
+
+	return strings[actT], nil
+}
+
+type removeKey_t struct {
+	ID string `json:"id"`
+}
+
+type action struct {
+	ActType   string      `json:"actionType"`
+	AddKey    publicKey   `json:"addKey"`
+	RemoveKey removeKey_t `json:"removeKey"`
+}
+
+type didUpdatingRequest struct {
+	Acts []action `json:"actions"`
+}
 
 // Types for generating a DID Prism document (handle a did resolve)
 type publicKeyJwk struct {
@@ -121,19 +154,24 @@ type didRequest struct {
 	DocumentTemplate documentTemplate `json:"documentTemplate"`
 }
 
-// Functions to type convertion related to a did request
-func toDIDRequest(pksID []string, pksPurpose []int) (didRequest, error) {
+// Functions to handle converting types
+func getPublicKeys(pksID []string, pksPurpose []int) ([]publicKey, error) {
 	var publicKeys []publicKey
-	services := []service{}
 
 	for i, pkID := range pksID {
 		pur, err := purpose(pksPurpose[i]).string()
 		if err != nil {
-			return didRequest{}, err
+			return nil, err
 		}
 		pk := publicKey{ID: pkID, Purpose: pur}
 		publicKeys = append(publicKeys, pk)
 	}
+
+	return publicKeys, nil
+}
+
+func getDIDRequest(publicKeys []publicKey) (didRequest, error) {
+	services := []service{}
 
 	documentTemplate := documentTemplate{PublicKeys: publicKeys, Services: services}
 	didRequest := didRequest{DocumentTemplate: documentTemplate}
@@ -141,8 +179,46 @@ func toDIDRequest(pksID []string, pksPurpose []int) (didRequest, error) {
 	return didRequest, nil
 }
 
-func StringSliceToIOReader(pksID []string, pksPurpose []int) (io.Reader, error) {
-	didRequest, err := toDIDRequest(pksID, pksPurpose)
+func UpdateIOReader(actsType []int, pksID []string, pksPurpose []int) (io.Reader, error) {
+	publicKeys, err := getPublicKeys(pksID, pksPurpose)
+	if err != nil {
+		return nil, err
+	}
+
+	var acts []action
+	for i, _ := range actsType {
+		actType, err := actionType(actsType[i]).string()
+		if err != nil {
+			return nil, err
+		}
+		if actsType[i] == addKey {
+			acts = append(acts, action{ActType: actType, AddKey: publicKeys[i]})
+		} else {
+			acts = append(acts, action{ActType: actType, RemoveKey: removeKey_t{ID: publicKeys[i].ID}})
+		}
+	}
+
+	didUpdateReq := didUpdatingRequest{Acts: acts}
+
+	postBody, err := json.MarshalIndent(didUpdateReq, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println(string(postBody))
+
+	responseBody := bytes.NewBuffer(postBody)
+
+	return responseBody, nil
+}
+
+func CreateIOReader(pksID []string, pksPurpose []int) (io.Reader, error) {
+	publicKeys, err := getPublicKeys(pksID, pksPurpose)
+	if err != nil {
+		return nil, err
+	}
+
+	didRequest, err := getDIDRequest(publicKeys)
 	if err != nil {
 		return nil, err
 	}

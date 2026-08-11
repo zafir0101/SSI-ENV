@@ -16,15 +16,15 @@ type cloudAgentAPI struct {
 }
 
 func NewCloudAgentAPI(agentURL *url.URL) *cloudAgentAPI {
-	return &cloudAgentAPI{agentURL: agentURL, formattedURL: agentURL.Scheme + "://" + agentURL.Host}
+	return &cloudAgentAPI{agentURL: agentURL, formattedURL: agentURL.Scheme + "://" + agentURL.Host + "/cloud-agent"}
 }
 
 func (ca *cloudAgentAPI) CreatDID(pksID []string, pksPurpose []int) (DIDPrism, error) {
-	responseBody, err := StringSliceToIOReader(pksID, pksPurpose)
+	responseBody, err := CreateIOReader(pksID, pksPurpose)
 	if err != nil {
 		return "", err
 	}
-	respReg, err := http.Post(ca.formattedURL+"/cloud-agent/did-registrar/dids", "application/json", responseBody)
+	respReg, err := http.Post(ca.formattedURL+"/did-registrar/dids", "application/json", responseBody)
 	if err != nil {
 		return "", err
 	}
@@ -41,7 +41,7 @@ func (ca *cloudAgentAPI) CreatDID(pksID []string, pksPurpose []int) (DIDPrism, e
 	}
 	longFormDID := didRegResponse.LongFormDID
 
-	respPub, err := http.Post(ca.formattedURL+"/cloud-agent/did-registrar/dids/"+longFormDID+"/publications",
+	respPub, err := http.Post(ca.formattedURL+"/did-registrar/dids/"+longFormDID+"/publications",
 		"application/json", responseBody)
 	if err != nil {
 		return "", err
@@ -70,7 +70,7 @@ func (ca *cloudAgentAPI) ResolveDID(did DIDPrism) (DIDPrismDocument, error) {
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
-		ca.formattedURL+"/cloud-agent/dids/"+string(did), nil)
+		ca.formattedURL+"/dids/"+string(did), nil)
 	if err != nil {
 		return DIDPrismDocument{}, err
 	}
@@ -96,13 +96,47 @@ func (ca *cloudAgentAPI) ResolveDID(did DIDPrism) (DIDPrismDocument, error) {
 	return didDocument, nil
 }
 
-/*
-func (ca *CloudAgentAPI) UpdateDID(did DIDPrism) error {
+// Limitada em adicionar ou remover chaves
+func (ca *cloudAgentAPI) UpdateDID(did DIDPrism, actsType []int, pksID []string, pksPurpose []int) error {
+	responseBody, err := UpdateIOReader(actsType, pksID, pksPurpose)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.Post(ca.formattedURL+"/did-registrar/dids/"+string(did)+"/updates",
+		"application/json", responseBody)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusAccepted {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("resolve failed: status=%d body=%s", resp.StatusCode, string(body))
+	}
+
+	return nil
 
 }
 
-func (ca *CloudAgentAPI) DeactivateDID(did DIDPrism) error
+// Retorna 202 mas não é efetivada na VDR no ambiente de teste locais
+func (ca *cloudAgentAPI) DeactivateDID(did DIDPrism) error {
+	resp, err := http.Post(ca.formattedURL+"/cloud-agent/did-registrar/dids/"+string(did)+"/deactivations",
+		"application/json", nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusAccepted {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("resolve failed: status=%d body=%s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+/*
 func (ca *CloudAgentAPI) CreateVC() {}
 
 func (ca *CloudAgentAPI) DeactivateVC() {}

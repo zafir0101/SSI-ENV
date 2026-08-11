@@ -10,14 +10,14 @@ import (
 
 const urlString = "http://localhost:8080"
 
+var ca *cloudAgentAPI = createAgent()
+
 func createAgent() *cloudAgentAPI {
 	agentURL, _ := url.Parse(urlString)
 	return NewCloudAgentAPI(agentURL)
 }
 
-func TestCreateAndReadDID(t *testing.T) {
-	ca := createAgent()
-
+func TestCrudDID(t *testing.T) {
 	pksID := []string{"auth-1", "issue-1"}
 	pksPurpose := []int{0, 1}
 
@@ -27,7 +27,7 @@ func TestCreateAndReadDID(t *testing.T) {
 	}
 	fmt.Println(string(did))
 
-	time.Sleep(15 * time.Second)
+	time.Sleep(30 * time.Second)
 
 	didDocument, err := ca.ResolveDID(did)
 	if err != nil {
@@ -40,4 +40,15 @@ func TestCreateAndReadDID(t *testing.T) {
 	}
 
 	fmt.Println(string(json))
+
+	// if err := ca.DeactivateDID(did); err != nil {
+	// fmt.Println(err.Error())
+	// }
+
+	actsType := []int{0}
+	pkID := []string{"auth-2"}
+	pkPur := []int{0}
+	if err := ca.UpdateDID(did, actsType, pkID, pkPur); err != nil {
+		fmt.Println(err.Error())
+	}
 }
