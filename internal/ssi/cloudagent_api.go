@@ -23,7 +23,7 @@ func NewCloudAgentAPI(agentURL *url.URL) *cloudAgentAPI {
 }
 
 func (ca *cloudAgentAPI) CreatDID(pksID []string, pksPurpose []int) (DIDPrism, error) {
-	postBody, err := didCreateIOReader(pksID, pksPurpose)
+	postBody, err := toIOReader(getDIDCreateRequest(pksID, pksPurpose))
 	if err != nil {
 		return "", err
 	}
@@ -99,7 +99,7 @@ func (ca *cloudAgentAPI) ResolveDID(did DIDPrism) (DIDPrismDocument, error) {
 
 // Limitada em adicionar ou remover chaves
 func (ca *cloudAgentAPI) UpdateDID(did DIDPrism, actsType []int, pksID []string, pksPurpose []int) error {
-	postBody, err := didUpdateIOReader(actsType, pksID, pksPurpose)
+	postBody, err := toIOReader(getDIDUpdateRequest(actsType, pksID, pksPurpose))
 	if err != nil {
 		return err
 	}
@@ -162,6 +162,8 @@ func (ca *cloudAgentAPI) DeactivateConnection(connID ConnectionID) error {
 
 	return nil
 }
+
+func (ca *cloudAgentAPI) CreateSchema() {}
 
 /*
 func (ca *CloudAgentAPI) CreateVC() {}

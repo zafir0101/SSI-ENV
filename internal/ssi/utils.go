@@ -35,50 +35,41 @@ func assembleDIDCreateRequest(publicKeys []publicKey) (didCreateRequest, error) 
 	return didCReq, nil
 }
 
-func toIOReader(obj any) (io.Reader, error) {
-	postBodyJson, err := json.MarshalIndent(obj, "", "  ")
-	if err != nil {
-		return nil, err
-	}
-
-	postBodyReader := bytes.NewBuffer(postBodyJson)
-
-	return postBodyReader, nil
-}
-
-func acceptConnectionIOReader(inv InvitationOOB) (io.Reader, error) {
+func getAcceptConnectionRequest(inv InvitationOOB) (invititationRequest, error) {
 	invReq := invititationRequest{Invitation: inv}
-
-	postBody, err := toIOReader(invReq)
-	if err != nil {
-		return nil, err
-	}
-
-	return postBody, nil
+	return invReq, nil
 }
 
-func connectionIOReader(label string) (io.Reader, error) {
+func getCreateConnectionRequest(label string) (connectionRequest, error) {
 	connReq := connectionRequest{Label: label}
-
-	postBody, err := toIOReader(connReq)
-	if err != nil {
-		return nil, err
-	}
-
-	return postBody, nil
+	return connReq, nil
 }
 
-func didUpdateIOReader(actsType []int, pksID []string, pksPurpose []int) (io.Reader, error) {
+func getDIDCreateRequest(pksID []string, pksPurpose []int) (didCreateRequest, error) {
 	publicKeys, err := assemblePublicKeys(pksID, pksPurpose)
 	if err != nil {
-		return nil, err
+		return didCreateRequest{}, err
+	}
+
+	didRequest, err := assembleDIDCreateRequest(publicKeys)
+	if err != nil {
+		return didCreateRequest{}, err
+	}
+
+	return didRequest, nil
+}
+
+func getDIDUpdateRequest(actsType []int, pksID []string, pksPurpose []int) (didUpdateRequest, error) {
+	publicKeys, err := assemblePublicKeys(pksID, pksPurpose)
+	if err != nil {
+		return didUpdateRequest{}, err
 	}
 
 	var acts []action
 	for i, _ := range actsType {
 		actType, err := actionType(actsType[i]).string()
 		if err != nil {
-			return nil, err
+			return didUpdateRequest{}, err
 		}
 		if actsType[i] == addKey {
 			acts = append(acts, action{ActType: actType, AddKey: publicKeys[i]})
@@ -88,36 +79,26 @@ func didUpdateIOReader(actsType []int, pksID []string, pksPurpose []int) (io.Rea
 	}
 
 	didUpdateReq := didUpdateRequest{Acts: acts}
-
-	postBody, err := toIOReader(didUpdateReq)
-	if err != nil {
-		return nil, err
-	}
-
-	return postBody, nil
+	return didUpdateReq, nil
 }
 
-func didCreateIOReader(pksID []string, pksPurpose []int) (io.Reader, error) {
-	publicKeys, err := assemblePublicKeys(pksID, pksPurpose)
+func toIOReader(req any, err error) (io.Reader, error) {
 	if err != nil {
 		return nil, err
 	}
 
-	didRequest, err := assembleDIDCreateRequest(publicKeys)
+	postBodyJSON, err := json.MarshalIndent(req, "", "  ")
 	if err != nil {
 		return nil, err
 	}
 
-	postBody, err := toIOReader(didRequest)
-	if err != nil {
-		return nil, err
-	}
+	postBodyReader := bytes.NewBuffer(postBodyJSON)
 
-	return postBody, nil
+	return postBodyReader, nil
 }
 
 func createConnection(label string, agentUrl string) (ConnectionID, InvitationOOB, error) {
-	postBody, err := connectionIOReader(label)
+	postBody, err := toIOReader(getCreateConnectionRequest(label))
 	if err != nil {
 		return "", "", err
 	}
@@ -147,7 +128,7 @@ func createConnection(label string, agentUrl string) (ConnectionID, InvitationOO
 }
 
 func acceptConnection(inv InvitationOOB, agentUrl string) (ConnectionID, error) {
-	postBody, err := acceptConnectionIOReader(inv)
+	postBody, err := toIOReader(getAcceptConnectionRequest(inv))
 	if err != nil {
 		return "", err
 	}

@@ -1,6 +1,7 @@
 package ssi
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"testing"
@@ -30,28 +31,28 @@ func TestCrudDID(t *testing.T) {
 
 	time.Sleep(30 * time.Second)
 
-	// didDocument, err := ca.ResolveDID(did)
-	// if err != nil {
-	// fmt.Println(err.Error())
-	// }
+	didDocument, err := ca.ResolveDID(did)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
 
-	// json, err := json.MarshalIndent(didDocument, "", "  ")
-	// if err != nil {
-	// fmt.Println(err.Error())
-	// }
+	json, err := json.MarshalIndent(didDocument, "", "  ")
+	if err != nil {
+		fmt.Println(err.Error())
+	}
 
-	// fmt.Println(string(json))
+	fmt.Println(string(json))
 
 	// if err := ca.DeactivateDID(did); err != nil {
 	// fmt.Println(err.Error())
 	// }
 
-	// actsType := []int{0}
-	// pkID := []string{"auth-2"}
-	// pkPur := []int{0}
-	// if err := ca.UpdateDID(did, actsType, pkID, pkPur); err != nil {
-	// fmt.Println(err.Error())
-	// }
+	actsType := []int{0}
+	pkID := []string{"auth-2"}
+	pkPur := []int{0}
+	if err := ca.UpdateDID(did, actsType, pkID, pkPur); err != nil {
+		fmt.Println(err.Error())
+	}
 
 	connId, _, err := ca.CreateConnection("")
 	if err != nil {
