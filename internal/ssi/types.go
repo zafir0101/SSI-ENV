@@ -1,14 +1,32 @@
 package ssi
 
-import (
-	"bytes"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"io"
-)
+import "errors"
 
-type DIDPrism string
+type DIDPrism = string
+type DIDPeer = string
+
+type InvitationOOB = string
+type ConnectionID = string
+
+// Types for parsing a connection response
+type invitation struct {
+	InvitationUrl string `json:"invitationUrl"`
+}
+
+type connectionResponse struct {
+	ConnectionID string     `json:"connectionId"`
+	Invitation   invitation `json:"invitation"`
+}
+
+// Types for creating a connection request
+type connectionRequest struct {
+	Label string `json:"label"`
+}
+
+// Types for accepting a connection request
+type invititationRequest struct {
+	Invitation InvitationOOB `json:"invitation"`
+}
 
 // Types for updating a DID Prism document (add or remove a key)
 type actionType int
@@ -38,7 +56,7 @@ type action struct {
 	RemoveKey removeKey_t `json:"removeKey"`
 }
 
-type didUpdatingRequest struct {
+type didUpdateRequest struct {
 	Acts []action `json:"actions"`
 }
 
@@ -91,10 +109,7 @@ type DIDPrismDocument struct {
 }
 
 /*
-type DIDPeer string
 type DIDPeerDocument string
-
-type DIDComm string
 
 type VeriableCredential string
 
@@ -150,85 +165,6 @@ type documentTemplate struct {
 	Services   []service   `json:"services"`
 }
 
-type didRequest struct {
+type didCreateRequest struct {
 	DocumentTemplate documentTemplate `json:"documentTemplate"`
-}
-
-// Functions to handle converting types
-func getPublicKeys(pksID []string, pksPurpose []int) ([]publicKey, error) {
-	var publicKeys []publicKey
-
-	for i, pkID := range pksID {
-		pur, err := purpose(pksPurpose[i]).string()
-		if err != nil {
-			return nil, err
-		}
-		pk := publicKey{ID: pkID, Purpose: pur}
-		publicKeys = append(publicKeys, pk)
-	}
-
-	return publicKeys, nil
-}
-
-func getDIDRequest(publicKeys []publicKey) (didRequest, error) {
-	services := []service{}
-
-	documentTemplate := documentTemplate{PublicKeys: publicKeys, Services: services}
-	didRequest := didRequest{DocumentTemplate: documentTemplate}
-
-	return didRequest, nil
-}
-
-func UpdateIOReader(actsType []int, pksID []string, pksPurpose []int) (io.Reader, error) {
-	publicKeys, err := getPublicKeys(pksID, pksPurpose)
-	if err != nil {
-		return nil, err
-	}
-
-	var acts []action
-	for i, _ := range actsType {
-		actType, err := actionType(actsType[i]).string()
-		if err != nil {
-			return nil, err
-		}
-		if actsType[i] == addKey {
-			acts = append(acts, action{ActType: actType, AddKey: publicKeys[i]})
-		} else {
-			acts = append(acts, action{ActType: actType, RemoveKey: removeKey_t{ID: publicKeys[i].ID}})
-		}
-	}
-
-	didUpdateReq := didUpdatingRequest{Acts: acts}
-
-	postBody, err := json.MarshalIndent(didUpdateReq, "", "  ")
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Println(string(postBody))
-
-	responseBody := bytes.NewBuffer(postBody)
-
-	return responseBody, nil
-}
-
-func CreateIOReader(pksID []string, pksPurpose []int) (io.Reader, error) {
-	publicKeys, err := getPublicKeys(pksID, pksPurpose)
-	if err != nil {
-		return nil, err
-	}
-
-	didRequest, err := getDIDRequest(publicKeys)
-	if err != nil {
-		return nil, err
-	}
-
-	postBody, err := json.MarshalIndent(didRequest, "", "  ")
-	if err != nil {
-		return nil, err
-	}
-
-	responseBody := bytes.NewBuffer(postBody)
-
-	return responseBody, nil
 }

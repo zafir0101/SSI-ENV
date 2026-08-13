@@ -16,15 +16,18 @@ type cloudAgentAPI struct {
 }
 
 func NewCloudAgentAPI(agentURL *url.URL) *cloudAgentAPI {
-	return &cloudAgentAPI{agentURL: agentURL, formattedURL: agentURL.Scheme + "://" + agentURL.Host + "/cloud-agent"}
+	return &cloudAgentAPI{
+		agentURL:     agentURL,
+		formattedURL: agentURL.Scheme + "://" + agentURL.Host + "/cloud-agent",
+	}
 }
 
 func (ca *cloudAgentAPI) CreatDID(pksID []string, pksPurpose []int) (DIDPrism, error) {
-	responseBody, err := CreateIOReader(pksID, pksPurpose)
+	postBody, err := didCreateIOReader(pksID, pksPurpose)
 	if err != nil {
 		return "", err
 	}
-	respReg, err := http.Post(ca.formattedURL+"/did-registrar/dids", "application/json", responseBody)
+	respReg, err := http.Post(ca.formattedURL+"/did-registrar/dids", "application/json", postBody)
 	if err != nil {
 		return "", err
 	}
@@ -42,7 +45,7 @@ func (ca *cloudAgentAPI) CreatDID(pksID []string, pksPurpose []int) (DIDPrism, e
 	longFormDID := didRegResponse.LongFormDID
 
 	respPub, err := http.Post(ca.formattedURL+"/did-registrar/dids/"+longFormDID+"/publications",
-		"application/json", responseBody)
+		"application/json", postBody)
 	if err != nil {
 		return "", err
 	}
@@ -64,19 +67,17 @@ func (ca *cloudAgentAPI) CreatDID(pksID []string, pksPurpose []int) (DIDPrism, e
 }
 
 func (ca *cloudAgentAPI) ResolveDID(did DIDPrism) (DIDPrismDocument, error) {
-	client := &http.Client{}
-
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
-		ca.formattedURL+"/dids/"+string(did), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ca.formattedURL+"/dids/"+did, nil)
 	if err != nil {
 		return DIDPrismDocument{}, err
 	}
 
 	req.Header.Set("Accept", "application/ld+json; profile=https://w3id.org/did-resolution")
 
+	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		return DIDPrismDocument{}, err
@@ -98,13 +99,13 @@ func (ca *cloudAgentAPI) ResolveDID(did DIDPrism) (DIDPrismDocument, error) {
 
 // Limitada em adicionar ou remover chaves
 func (ca *cloudAgentAPI) UpdateDID(did DIDPrism, actsType []int, pksID []string, pksPurpose []int) error {
-	responseBody, err := UpdateIOReader(actsType, pksID, pksPurpose)
+	postBody, err := didUpdateIOReader(actsType, pksID, pksPurpose)
 	if err != nil {
 		return err
 	}
 
-	resp, err := http.Post(ca.formattedURL+"/did-registrar/dids/"+string(did)+"/updates",
-		"application/json", responseBody)
+	resp, err := http.Post(ca.formattedURL+"/did-registrar/dids/"+did+"/updates",
+		"application/json", postBody)
 	if err != nil {
 		return err
 	}
@@ -116,12 +117,11 @@ func (ca *cloudAgentAPI) UpdateDID(did DIDPrism, actsType []int, pksID []string,
 	}
 
 	return nil
-
 }
 
 // Retorna 202 mas não é efetivada na VDR no ambiente de teste locais
 func (ca *cloudAgentAPI) DeactivateDID(did DIDPrism) error {
-	resp, err := http.Post(ca.formattedURL+"/cloud-agent/did-registrar/dids/"+string(did)+"/deactivations",
+	resp, err := http.Post(ca.formattedURL+"/did-registrar/dids/"+did+"/deactivations",
 		"application/json", nil)
 	if err != nil {
 		return err
@@ -136,22 +136,37 @@ func (ca *cloudAgentAPI) DeactivateDID(did DIDPrism) error {
 	return nil
 }
 
+func (ca *cloudAgentAPI) CreateConnection(label string) (ConnectionID, InvitationOOB, error) {
+	connId, invOOB, err := createConnection(label, ca.formattedURL)
+	if err != nil {
+		return "", "", err
+	}
+
+	return connId, invOOB, nil
+}
+
+func (ca *cloudAgentAPI) AcceptConnection(inv InvitationOOB) (ConnectionID, error) {
+	connId, err := acceptConnection(inv, ca.formattedURL)
+	if err != nil {
+		return "", err
+	}
+
+	return connId, nil
+}
+
+// Limitado a convites enviados mas não respondidos.
+func (ca *cloudAgentAPI) DeactivateConnection(connID ConnectionID) error {
+	if err := deactivateConnection(connID, ca.formattedURL); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 /*
 func (ca *CloudAgentAPI) CreateVC() {}
 
 func (ca *CloudAgentAPI) DeactivateVC() {}
 
 func (ca *CloudAgentAPI) CreateSchema() {}
-
-func (ca *CloudAgentAPI) CreateConnection() DIDComm {
-
-}
-
-func (ca *CloudAgentAPI) AcceptConnection(d DIDComm) {
-
-}
-
-func (ca *CloudAgentAPI) DeactivateConnection(d DIDComm) {
-
-}
 */
