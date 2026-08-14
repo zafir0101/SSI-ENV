@@ -11,82 +11,7 @@ import (
 	"time"
 )
 
-func assemblePublicKeys(pksID []string, pksPurpose []int) ([]publicKey, error) {
-	var publicKeys []publicKey
-
-	for i, pkID := range pksID {
-		pur, err := purpose(pksPurpose[i]).string()
-		if err != nil {
-			return nil, err
-		}
-		pk := publicKey{ID: pkID, Purpose: pur}
-		publicKeys = append(publicKeys, pk)
-	}
-
-	return publicKeys, nil
-}
-
-func assembleDIDCreateRequest(publicKeys []publicKey) (didCreateRequest, error) {
-	services := []service{}
-
-	documentTemplate := documentTemplate{PublicKeys: publicKeys, Services: services}
-	didCReq := didCreateRequest{DocumentTemplate: documentTemplate}
-
-	return didCReq, nil
-}
-
-func getAcceptConnectionRequest(inv InvitationOOB) (invititationRequest, error) {
-	invReq := invititationRequest{Invitation: inv}
-	return invReq, nil
-}
-
-func getCreateConnectionRequest(label string) (connectionRequest, error) {
-	connReq := connectionRequest{Label: label}
-	return connReq, nil
-}
-
-func getDIDCreateRequest(pksID []string, pksPurpose []int) (didCreateRequest, error) {
-	publicKeys, err := assemblePublicKeys(pksID, pksPurpose)
-	if err != nil {
-		return didCreateRequest{}, err
-	}
-
-	didRequest, err := assembleDIDCreateRequest(publicKeys)
-	if err != nil {
-		return didCreateRequest{}, err
-	}
-
-	return didRequest, nil
-}
-
-func getDIDUpdateRequest(actsType []int, pksID []string, pksPurpose []int) (didUpdateRequest, error) {
-	publicKeys, err := assemblePublicKeys(pksID, pksPurpose)
-	if err != nil {
-		return didUpdateRequest{}, err
-	}
-
-	var acts []action
-	for i, _ := range actsType {
-		actType, err := actionType(actsType[i]).string()
-		if err != nil {
-			return didUpdateRequest{}, err
-		}
-		if actsType[i] == addKey {
-			acts = append(acts, action{ActType: actType, AddKey: publicKeys[i]})
-		} else {
-			acts = append(acts, action{ActType: actType, RemoveKey: removeKey_t{ID: publicKeys[i].ID}})
-		}
-	}
-
-	didUpdateReq := didUpdateRequest{Acts: acts}
-	return didUpdateReq, nil
-}
-
-func toIOReader(req any, err error) (io.Reader, error) {
-	if err != nil {
-		return nil, err
-	}
-
+func toIOReader(req any) (io.Reader, error) {
 	postBodyJSON, err := json.MarshalIndent(req, "", "  ")
 	if err != nil {
 		return nil, err
@@ -97,13 +22,13 @@ func toIOReader(req any, err error) (io.Reader, error) {
 	return postBodyReader, nil
 }
 
-func createConnection(label string, agentUrl string) (ConnectionID, InvitationOOB, error) {
-	postBody, err := toIOReader(getCreateConnectionRequest(label))
+func createConnection(request ConnectionCreationPayload, agentURL string) (ConnectionID, InvitationOOB, error) {
+	postBody, err := toIOReader(request)
 	if err != nil {
 		return "", "", err
 	}
 
-	resp, err := http.Post(agentUrl+"/connections", "application/json", postBody)
+	resp, err := http.Post(agentURL+"/connections", "application/json", postBody)
 	if err != nil {
 		return "", "", err
 	}
@@ -119,21 +44,21 @@ func createConnection(label string, agentUrl string) (ConnectionID, InvitationOO
 		return "", "", err
 	}
 
-	_, invitationOOB, found := strings.Cut(connResponse.Invitation.InvitationUrl, "_oob=")
+	_, invitationOOB, found := strings.Cut(connResponse.Invitation.InvitationURL, "_oob=")
 	if !found {
-		return "", "", fmt.Errorf("Invalid invitation. InvitationUrl=%s", connResponse.Invitation.InvitationUrl)
+		return "", "", fmt.Errorf("Invalid invitation. InvitationUrl=%s", connResponse.Invitation.InvitationURL)
 	}
 
 	return connResponse.ConnectionID, invitationOOB, nil
 }
 
-func acceptConnection(inv InvitationOOB, agentUrl string) (ConnectionID, error) {
-	postBody, err := toIOReader(getAcceptConnectionRequest(inv))
+func acceptConnection(request ConnectionAcceptPayload, agentURL string) (ConnectionID, error) {
+	postBody, err := toIOReader(request)
 	if err != nil {
 		return "", err
 	}
 
-	resp, err := http.Post(agentUrl+"/connection-invitations", "application/json", postBody)
+	resp, err := http.Post(agentURL+"/connection-invitations", "application/json", postBody)
 	if err != nil {
 		return "", err
 	}
@@ -153,11 +78,11 @@ func acceptConnection(inv InvitationOOB, agentUrl string) (ConnectionID, error) 
 }
 
 // Limitado a convites enviados mas não respondidos.
-func deactivateConnection(connID ConnectionID, agentUrl string) error {
+func deactivateConnection(connID ConnectionID, agentURL string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, agentUrl+
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, agentURL+
 		"/connections/"+connID, nil)
 	if err != nil {
 		return err

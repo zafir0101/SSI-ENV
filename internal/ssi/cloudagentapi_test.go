@@ -1,4 +1,4 @@
-package ssi
+package ssi_test
 
 import (
 	"encoding/json"
@@ -6,24 +6,29 @@ import (
 	"net/url"
 	"testing"
 	"time"
+
+	"github.com/zafir0101/SSI-ENV/internal/controller"
+	"github.com/zafir0101/SSI-ENV/internal/ssi"
 )
 
 const caUrlString = "http://localhost:8080"
 const eaUrlString = "http://localhost:8081"
 
-var ca *cloudAgentAPI = createAgent(caUrlString)
-var ea *cloudAgentAPI = createAgent(eaUrlString)
+var ca *ssi.CloudAgentAPI = createAgent(caUrlString)
+var ea *ssi.CloudAgentAPI = createAgent(eaUrlString)
+var co controller.Controller = controller.Controller{CloudAgentAPI: ca}
+var wallet controller.Controller = controller.Controller{CloudAgentAPI: ea}
 
-func createAgent(urlString string) *cloudAgentAPI {
+func createAgent(urlString string) *ssi.CloudAgentAPI {
 	agentURL, _ := url.Parse(urlString)
-	return NewCloudAgentAPI(agentURL)
+	return ssi.NewCloudAgentAPI(agentURL)
 }
 
 func TestCrudDID(t *testing.T) {
 	pksID := []string{"auth-1", "issue-1"}
-	pksPurpose := []int{0, 1}
+	pksPurpose := []ssi.KeyPurpose{ssi.Authentication, ssi.AssertionMethod}
 
-	did, err := ca.CreatDID(pksID, pksPurpose)
+	did, err := co.CreateDID(pksID, pksPurpose)
 	if err != nil {
 		fmt.Println(err.Error())
 	}
@@ -31,7 +36,7 @@ func TestCrudDID(t *testing.T) {
 
 	time.Sleep(30 * time.Second)
 
-	didDocument, err := ca.ResolveDID(did)
+	didDocument, err := co.ResolveDID(did)
 	if err != nil {
 		fmt.Println(err.Error())
 	}
@@ -47,21 +52,24 @@ func TestCrudDID(t *testing.T) {
 	// fmt.Println(err.Error())
 	// }
 
-	actsType := []int{0}
+	actsType := []ssi.ActionType{ssi.AddKey}
 	pkID := []string{"auth-2"}
-	pkPur := []int{0}
-	if err := ca.UpdateDID(did, actsType, pkID, pkPur); err != nil {
+	pkPur := []ssi.KeyPurpose{ssi.Authentication}
+	if err := co.UpdateDID(actsType, pkID, pkPur); err != nil {
 		fmt.Println(err.Error())
 	}
 
-	connId, _, err := ca.CreateConnection("")
+	_, inv, err := co.CreateConnection("")
 	if err != nil {
 		fmt.Println(err.Error())
 	}
 
+	wallet.AcceptConnection(inv)
+
 	time.Sleep(30 * time.Second)
 
-	if err := ca.DeactivateConnection(connId); err != nil {
-		fmt.Println(err.Error())
-	}
+	// if err := co.DeactivateConnection(connId); err != nil {
+	// fmt.Println(err.Error())
+	// }
+
 }

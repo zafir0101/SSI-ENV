@@ -1,63 +1,37 @@
 package ssi
 
-import "errors"
-
+// Alias que podem ser extensíveis para structs com verificação
+// a partir de regex
 type DIDPrism = string
-type DIDPeer = string
 
 type InvitationOOB = string
 type ConnectionID = string
 
+type SchemaGUID = string
+
+// Types to parse a did publish response
+type scheduledOperation struct {
+	ID     string `json:"id"`
+	DIDRef string `json:"didRef"`
+}
+
+type didPubResponse struct {
+	ScheduledOperation scheduledOperation `json:"scheduledOperation"`
+}
+
+// Types to parse a did register response
+type didRegResponse struct {
+	LongFormDID string `json:"longFormDid"`
+}
+
 // Types for parsing a connection response
 type invitation struct {
-	InvitationUrl string `json:"invitationUrl"`
+	InvitationURL string `json:"invitationUrl"`
 }
 
 type connectionResponse struct {
 	ConnectionID string     `json:"connectionId"`
 	Invitation   invitation `json:"invitation"`
-}
-
-// Types for creating a connection request
-type connectionRequest struct {
-	Label string `json:"label"`
-}
-
-// Types for accepting a connection request
-type invititationRequest struct {
-	Invitation InvitationOOB `json:"invitation"`
-}
-
-// Types for updating a DID Prism document (add or remove a key)
-type actionType int
-
-const (
-	addKey int = iota
-	removeKey
-)
-
-func (actT actionType) string() (string, error) {
-	strings := [2]string{"ADD_KEY", "REMOVE_KEY"}
-
-	if actT < 0 || int(actT) >= len(strings) {
-		return "", errors.New("invalid action")
-	}
-
-	return strings[actT], nil
-}
-
-type removeKey_t struct {
-	ID string `json:"id"`
-}
-
-type action struct {
-	ActType   string      `json:"actionType"`
-	AddKey    publicKey   `json:"addKey"`
-	RemoveKey removeKey_t `json:"removeKey"`
-}
-
-type didUpdateRequest struct {
-	Acts []action `json:"actions"`
 }
 
 // Types for generating a DID Prism document (handle a did resolve)
@@ -109,62 +83,17 @@ type DIDPrismDocument struct {
 }
 
 /*
-type DIDPeerDocument string
+type schema struct {
+	Schema     string     `json:"$schema"`
+	Type       string     `json:"type"`
+	Properties properties `json:"properties"`
+}
 
-type VeriableCredential string
-
-type Schema string
+type schemaRequest struct {
+	Name    string   `json:"name"`
+	Version string   `json:"version"`
+	Type    string   `json:"type"`
+	Schema  schema   `json:"schema"`
+	Author  DIDPrism `json:"author"`
+}
 */
-
-// Types to parse a did publish response
-type scheduledOperation struct {
-	ID     string `json:"id"`
-	DIDRef string `json:"didRef"`
-}
-
-type didPubResponse struct {
-	ScheduledOperation scheduledOperation `json:"scheduledOperation"`
-}
-
-// Types to parse a did register response
-type didRegResponse struct {
-	LongFormDID string `json:"longFormDid"`
-}
-
-// Types to request a did prism
-type purpose int
-
-const (
-	authentication purpose = iota
-	assertionMethod
-	keyAgreement
-	capabilityInvocation
-	capabilityDelegation
-)
-
-func (p purpose) string() (string, error) {
-	strings := [5]string{"authentication", "assertionMethod", "KeyAgreement",
-		"capabilityInvocation", "capabilituDelegation"}
-
-	if p < 0 || int(p) >= len(strings) {
-		return "", errors.New("invalid purpose")
-	}
-
-	return strings[p], nil
-}
-
-type publicKey struct {
-	ID      string `json:"id"`
-	Purpose string `json:"purpose"`
-}
-
-type service struct{}
-
-type documentTemplate struct {
-	PublicKeys []publicKey `json:"publicKeys"`
-	Services   []service   `json:"services"`
-}
-
-type didCreateRequest struct {
-	DocumentTemplate documentTemplate `json:"documentTemplate"`
-}

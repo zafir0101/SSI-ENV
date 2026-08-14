@@ -3,27 +3,27 @@ package ssi
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
 	"time"
 )
 
-type cloudAgentAPI struct {
-	agentURL     *url.URL
+type CloudAgentAPI struct {
+	AgentURL     *url.URL
 	formattedURL string
 }
 
-func NewCloudAgentAPI(agentURL *url.URL) *cloudAgentAPI {
-	return &cloudAgentAPI{
-		agentURL:     agentURL,
+func NewCloudAgentAPI(agentURL *url.URL) *CloudAgentAPI {
+	return &CloudAgentAPI{
+		AgentURL:     agentURL,
 		formattedURL: agentURL.Scheme + "://" + agentURL.Host + "/cloud-agent",
 	}
 }
 
-func (ca *cloudAgentAPI) CreatDID(pksID []string, pksPurpose []int) (DIDPrism, error) {
-	postBody, err := toIOReader(getDIDCreateRequest(pksID, pksPurpose))
+func (ca *CloudAgentAPI) CreateDID(payload DIDCreationPayload) (DIDPrism, error) {
+	postBody, err := toIOReader(payload)
 	if err != nil {
 		return "", err
 	}
@@ -35,7 +35,7 @@ func (ca *cloudAgentAPI) CreatDID(pksID []string, pksPurpose []int) (DIDPrism, e
 
 	if respReg.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(respReg.Body)
-		return "", fmt.Errorf("resolve failed: status=%d body=%s", respReg.StatusCode, string(body))
+		return "", errors.New("Register failed: status=" + respReg.Status + "body=" + string(body))
 	}
 
 	var didRegResponse didRegResponse
@@ -53,7 +53,7 @@ func (ca *cloudAgentAPI) CreatDID(pksID []string, pksPurpose []int) (DIDPrism, e
 
 	if respPub.StatusCode != http.StatusAccepted {
 		body, _ := io.ReadAll(respPub.Body)
-		return "", fmt.Errorf("resolve failed: status=%d body=%s", respPub.StatusCode, string(body))
+		return "", errors.New("Publish failed: status=" + respPub.Status + "body=" + string(body))
 	}
 
 	var didPubResponse didPubResponse
@@ -66,7 +66,7 @@ func (ca *cloudAgentAPI) CreatDID(pksID []string, pksPurpose []int) (DIDPrism, e
 
 }
 
-func (ca *cloudAgentAPI) ResolveDID(did DIDPrism) (DIDPrismDocument, error) {
+func (ca *CloudAgentAPI) ResolveDID(did DIDPrism) (DIDPrismDocument, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -86,7 +86,7 @@ func (ca *cloudAgentAPI) ResolveDID(did DIDPrism) (DIDPrismDocument, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return DIDPrismDocument{}, fmt.Errorf("resolve failed: status=%d body=%s", resp.StatusCode, string(body))
+		return DIDPrismDocument{}, errors.New("Resolve failed: status=" + resp.Status + "body=" + string(body))
 	}
 
 	var didDocument DIDPrismDocument
@@ -98,8 +98,8 @@ func (ca *cloudAgentAPI) ResolveDID(did DIDPrism) (DIDPrismDocument, error) {
 }
 
 // Limitada em adicionar ou remover chaves
-func (ca *cloudAgentAPI) UpdateDID(did DIDPrism, actsType []int, pksID []string, pksPurpose []int) error {
-	postBody, err := toIOReader(getDIDUpdateRequest(actsType, pksID, pksPurpose))
+func (ca *CloudAgentAPI) UpdateDID(payload DIDUpdatePayload, did DIDPrism) error {
+	postBody, err := toIOReader(payload)
 	if err != nil {
 		return err
 	}
@@ -113,14 +113,14 @@ func (ca *cloudAgentAPI) UpdateDID(did DIDPrism, actsType []int, pksID []string,
 
 	if resp.StatusCode != http.StatusAccepted {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("resolve failed: status=%d body=%s", resp.StatusCode, string(body))
+		return errors.New("Update failed: status=" + resp.Status + "body=" + string(body))
 	}
 
 	return nil
 }
 
 // Retorna 202 mas não é efetivada na VDR no ambiente de teste locais
-func (ca *cloudAgentAPI) DeactivateDID(did DIDPrism) error {
+func (ca *CloudAgentAPI) DeactivateDID(did DIDPrism) error {
 	resp, err := http.Post(ca.formattedURL+"/did-registrar/dids/"+did+"/deactivations",
 		"application/json", nil)
 	if err != nil {
@@ -130,14 +130,14 @@ func (ca *cloudAgentAPI) DeactivateDID(did DIDPrism) error {
 
 	if resp.StatusCode != http.StatusAccepted {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("resolve failed: status=%d body=%s", resp.StatusCode, string(body))
+		return errors.New("Deactivate failed: status=" + resp.Status + "body=" + string(body))
 	}
 
 	return nil
 }
 
-func (ca *cloudAgentAPI) CreateConnection(label string) (ConnectionID, InvitationOOB, error) {
-	connId, invOOB, err := createConnection(label, ca.formattedURL)
+func (ca *CloudAgentAPI) CreateConnection(payload ConnectionCreationPayload) (ConnectionID, InvitationOOB, error) {
+	connId, invOOB, err := createConnection(payload, ca.formattedURL)
 	if err != nil {
 		return "", "", err
 	}
@@ -145,8 +145,8 @@ func (ca *cloudAgentAPI) CreateConnection(label string) (ConnectionID, Invitatio
 	return connId, invOOB, nil
 }
 
-func (ca *cloudAgentAPI) AcceptConnection(inv InvitationOOB) (ConnectionID, error) {
-	connId, err := acceptConnection(inv, ca.formattedURL)
+func (ca *CloudAgentAPI) AcceptConnection(payload ConnectionAcceptPayload) (ConnectionID, error) {
+	connId, err := acceptConnection(payload, ca.formattedURL)
 	if err != nil {
 		return "", err
 	}
@@ -155,7 +155,7 @@ func (ca *cloudAgentAPI) AcceptConnection(inv InvitationOOB) (ConnectionID, erro
 }
 
 // Limitado a convites enviados mas não respondidos.
-func (ca *cloudAgentAPI) DeactivateConnection(connID ConnectionID) error {
+func (ca *CloudAgentAPI) DeactivateConnection(connID ConnectionID) error {
 	if err := deactivateConnection(connID, ca.formattedURL); err != nil {
 		return err
 	}
@@ -163,12 +163,15 @@ func (ca *cloudAgentAPI) DeactivateConnection(connID ConnectionID) error {
 	return nil
 }
 
-func (ca *cloudAgentAPI) CreateSchema() {}
+// func (ca *CloudAgentAPI) CreateSchema(schemaName string, author DIDPrism,
+// ) (SchemaGUID, error) {
+
+// }
 
 /*
 func (ca *CloudAgentAPI) CreateVC() {}
 
 func (ca *CloudAgentAPI) DeactivateVC() {}
 
-func (ca *CloudAgentAPI) CreateSchema() {}
+func (ca *CloudAgentAPI) UpdateSchema() {}
 */
