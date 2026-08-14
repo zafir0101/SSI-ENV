@@ -27,7 +27,8 @@ func (ca *CloudAgentAPI) CreateDID(payload DIDCreationPayload) (DIDPrism, error)
 	if err != nil {
 		return "", err
 	}
-	respReg, err := http.Post(ca.formattedURL+"/did-registrar/dids", "application/json", postBody)
+	respReg, err := http.Post(ca.formattedURL+"/did-registrar/dids",
+		"application/json", postBody)
 	if err != nil {
 		return "", err
 	}
@@ -44,7 +45,7 @@ func (ca *CloudAgentAPI) CreateDID(payload DIDCreationPayload) (DIDPrism, error)
 	}
 	longFormDID := didRegResponse.LongFormDID
 
-	respPub, err := http.Post(ca.formattedURL+"/did-registrar/dids/"+longFormDID+"/publications",
+	respPub, err := http.Post(ca.formattedURL+"/did-registrar/dids/"+longFormDID+"/publications"+longFormDID,
 		"application/json", postBody)
 	if err != nil {
 		return "", err
@@ -86,7 +87,7 @@ func (ca *CloudAgentAPI) ResolveDID(did DIDPrism) (DIDPrismDocument, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return DIDPrismDocument{}, errors.New("Resolve failed: status=" + resp.Status + "body=" + string(body))
+		return DIDPrismDocument{}, errors.New("DID Resolution failed: status=" + resp.Status + "body=" + string(body))
 	}
 
 	var didDocument DIDPrismDocument
@@ -113,7 +114,7 @@ func (ca *CloudAgentAPI) UpdateDID(payload DIDUpdatePayload, did DIDPrism) error
 
 	if resp.StatusCode != http.StatusAccepted {
 		body, _ := io.ReadAll(resp.Body)
-		return errors.New("Update failed: status=" + resp.Status + "body=" + string(body))
+		return errors.New("DID Update failed: status=" + resp.Status + "body=" + string(body))
 	}
 
 	return nil
@@ -130,7 +131,7 @@ func (ca *CloudAgentAPI) DeactivateDID(did DIDPrism) error {
 
 	if resp.StatusCode != http.StatusAccepted {
 		body, _ := io.ReadAll(resp.Body)
-		return errors.New("Deactivate failed: status=" + resp.Status + "body=" + string(body))
+		return errors.New("DID deactivation failed: status=" + resp.Status + "body=" + string(body))
 	}
 
 	return nil
@@ -163,10 +164,30 @@ func (ca *CloudAgentAPI) DeactivateConnection(connID ConnectionID) error {
 	return nil
 }
 
-// func (ca *CloudAgentAPI) CreateSchema(schemaName string, author DIDPrism,
-// ) (SchemaGUID, error) {
+func (ca *CloudAgentAPI) CreateSchema(payload SchemaCreationPayload) (SchemaGUID, error) {
+	postBody, err := toIOReader(payload)
+	if err != nil {
+		return "", err
+	}
 
-// }
+	resp, err := http.Post(ca.formattedURL+"/schema-registry/schemas",
+		"application/json", postBody)
+	if err != nil {
+		return "", err
+	}
+
+	if resp.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(resp.Body)
+		return "", errors.New("Schema creation failed: status=" + resp.Status + "body=" + string(body))
+	}
+
+	var schemaResp schemaResponse
+	if err := json.NewDecoder(resp.Body).Decode(&schemaResp); err != nil {
+		return "", err
+	}
+
+	return schemaResp.SchemaGUID, nil
+}
 
 /*
 func (ca *CloudAgentAPI) CreateVC() {}

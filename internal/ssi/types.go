@@ -7,7 +7,12 @@ type DIDPrism = string
 type InvitationOOB = string
 type ConnectionID = string
 
+// Types to parse a schema creation response
 type SchemaGUID = string
+
+type schemaResponse struct {
+	SchemaGUID SchemaGUID `json:"guid"`
+}
 
 // Types to parse a did publish response
 type scheduledOperation struct {
@@ -81,19 +86,3 @@ type DIDPrismDocument struct {
 	DIDDocumentMetaData   didDocumentMetadata   `json:"didDocumentMetadata"`
 	DIDResolutionMetaData didResolutionMetadata `json:"didResolutionMetadata"`
 }
-
-/*
-type schema struct {
-	Schema     string     `json:"$schema"`
-	Type       string     `json:"type"`
-	Properties properties `json:"properties"`
-}
-
-type schemaRequest struct {
-	Name    string   `json:"name"`
-	Version string   `json:"version"`
-	Type    string   `json:"type"`
-	Schema  schema   `json:"schema"`
-	Author  DIDPrism `json:"author"`
-}
-*/

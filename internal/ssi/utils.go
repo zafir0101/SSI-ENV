@@ -82,8 +82,8 @@ func deactivateConnection(connID ConnectionID, agentURL string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, agentURL+
-		"/connections/"+connID, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete,
+		agentURL+"/connections/"+connID, nil)
 	if err != nil {
 		return err
 	}

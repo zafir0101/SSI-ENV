@@ -1,6 +1,9 @@
 package ssi
 
-import "errors"
+import (
+	"encoding/json"
+	"errors"
+)
 
 // Types to request a did prism
 type KeyPurpose int
@@ -80,4 +83,13 @@ type ConnectionCreationPayload struct {
 // Types for accepting a connection request
 type ConnectionAcceptPayload struct {
 	Invitation InvitationOOB `json:"invitation"`
+}
+
+type SchemaCreationPayload struct {
+	Name    string          `json:"name"`
+	Version string          `json:"version"`
+	Type    string          `json:"type"`
+	Schema  json.RawMessage `json:"schema"`
+	Tags    []string        `json:"tags"`
+	Author  DIDPrism        `json:"author"`
 }

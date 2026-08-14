@@ -1,6 +1,6 @@
 package ssi
 
-import ()
+import "encoding/json"
 
 func assemblePublicKeys(pksID []string, pksPurpose []KeyPurpose) ([]publicKey, error) {
 	var publicKeys []publicKey
@@ -15,14 +15,6 @@ func assemblePublicKeys(pksID []string, pksPurpose []KeyPurpose) ([]publicKey, e
 	}
 
 	return publicKeys, nil
-}
-
-func NewConnectionAcceptPayload(inv InvitationOOB) ConnectionAcceptPayload {
-	return ConnectionAcceptPayload{Invitation: inv}
-}
-
-func NewConnectionCreationPayload(label string) ConnectionCreationPayload {
-	return ConnectionCreationPayload{Label: label}
 }
 
 func NewDIDCreationPayload(pksID []string, pksPurpose []KeyPurpose) (DIDCreationPayload, error) {
@@ -60,4 +52,23 @@ func NewDIDUpdatePayload(actsType []ActionType, pksID []string, pksPurpose []Key
 
 	didUpdatePayload := DIDUpdatePayload{Acts: acts}
 	return didUpdatePayload, nil
+}
+
+func NewConnectionAcceptPayload(inv InvitationOOB) ConnectionAcceptPayload {
+	return ConnectionAcceptPayload{Invitation: inv}
+}
+
+func NewConnectionCreationPayload(label string) ConnectionCreationPayload {
+	return ConnectionCreationPayload{Label: label}
+}
+
+func NewSchemaCreationPayload(schemaName string, author DIDPrism, schema json.RawMessage) SchemaCreationPayload {
+	return SchemaCreationPayload{
+		Name:    schemaName,
+		Version: "1.0.0",
+		Type:    "https://w3c-ccg.github.io/vc-json-schemas/schema/2.0/schema.json",
+		Schema:  schema,
+		Tags:    []string{},
+		Author:  author,
+	}
 }
