@@ -7,11 +7,13 @@ type DIDPrism = string
 type InvitationOOB = string
 type ConnectionID = string
 
+type SchemaID = string
+
 // Types to parse a schema creation response
-type SchemaGUID = string
+type schemaGUID = string
 
 type schemaResponse struct {
-	SchemaGUID SchemaGUID `json:"guid"`
+	SchemaGUID schemaGUID `json:"guid"`
 }
 
 // Types to parse a did publish response

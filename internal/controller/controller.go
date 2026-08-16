@@ -1,7 +1,9 @@
 package controller
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/zafir0101/SSI-ENV/internal/ssi"
 )
@@ -9,7 +11,16 @@ import (
 type Controller struct {
 	CloudAgentAPI *ssi.CloudAgentAPI
 	didPrism      ssi.DIDPrism
-	// schemas []Schemas
+	Connections   map[string]ssi.ConnectionID
+	Schemas       map[string]ssi.SchemaID
+}
+
+func NewController(cloudAgentAPI *ssi.CloudAgentAPI) *Controller {
+	return &Controller{
+		CloudAgentAPI: cloudAgentAPI,
+		Connections:   make(map[string]ssi.ConnectionID),
+		Schemas:       make(map[string]ssi.SchemaID),
+	}
 }
 
 func (co *Controller) CreateDID(pksID []string, pksPurpose []ssi.KeyPurpose) (ssi.DIDPrism, error) {
@@ -77,10 +88,11 @@ func (co *Controller) CreateConnection(label string) (ssi.ConnectionID, ssi.Invi
 		return "", "", err
 	}
 
+	co.Connections[label] = connID
 	return connID, invOOB, nil
 }
 
-func (co *Controller) AcceptConnection(invOOB ssi.InvitationOOB) (ssi.ConnectionID, error) {
+func (co *Controller) AcceptConnection(label string, invOOB ssi.InvitationOOB) (ssi.ConnectionID, error) {
 	payload := ssi.NewConnectionAcceptPayload(invOOB)
 
 	connID, err := co.CloudAgentAPI.AcceptConnection(payload)
@@ -88,11 +100,37 @@ func (co *Controller) AcceptConnection(invOOB ssi.InvitationOOB) (ssi.Connection
 		return "", nil
 	}
 
+	co.Connections[label] = connID
 	return connID, nil
 }
 
 func (co *Controller) DeactivateConnection(connID ssi.ConnectionID) error {
 	if err := co.CloudAgentAPI.DeactivateConnection(connID); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (co *Controller) CreateSchema(schemaName string, schema json.RawMessage) (ssi.SchemaID, error) {
+	payload := ssi.NewSchemaCreationPayload(schemaName, co.didPrism, schema)
+
+	schemaID, err := co.CloudAgentAPI.CreateSchema(payload)
+	if err != nil {
+		return "", err
+	}
+
+	co.Schemas[schemaName] = schemaID
+	return schemaID, nil
+}
+
+func (co *Controller) CreateCredentialOffer(claims json.RawMessage,
+	connID ssi.ConnectionID, schemaID ssi.SchemaID) error {
+	payload := ssi.NewCredentialOfferPayload(claims, co.didPrism, connID, schemaID)
+	json, _ := json.MarshalIndent(payload, "", " ")
+	fmt.Println(string(json))
+	err := co.CloudAgentAPI.CreateCredentialOffer(payload)
+	if err != nil {
 		return err
 	}
 

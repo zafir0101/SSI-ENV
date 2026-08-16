@@ -93,3 +93,11 @@ type SchemaCreationPayload struct {
 	Tags    []string        `json:"tags"`
 	Author  DIDPrism        `json:"author"`
 }
+
+type CredentialOfferPayload struct {
+	Claims           json.RawMessage `json:"claims"`
+	CredentialFormat string          `json:"credentialFormat"`
+	IssuingDID       DIDPrism        `json:"issuingDID"`
+	ConnectionID     ConnectionID    `json:"connectionId"`
+	SchemaID         SchemaID        `json:"schemaId"`
+}

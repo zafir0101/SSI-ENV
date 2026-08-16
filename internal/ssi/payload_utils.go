@@ -72,3 +72,14 @@ func NewSchemaCreationPayload(schemaName string, author DIDPrism, schema json.Ra
 		Author:  author,
 	}
 }
+
+func NewCredentialOfferPayload(claims json.RawMessage, issuerDID DIDPrism,
+	connID ConnectionID, schemaID SchemaID) CredentialOfferPayload {
+	return CredentialOfferPayload{
+		Claims:           claims,
+		CredentialFormat: "JWT",
+		IssuingDID:       issuerDID,
+		ConnectionID:     connID,
+		SchemaID:         schemaID,
+	}
+}

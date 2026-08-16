@@ -45,7 +45,7 @@ func (ca *CloudAgentAPI) CreateDID(payload DIDCreationPayload) (DIDPrism, error)
 	}
 	longFormDID := didRegResponse.LongFormDID
 
-	respPub, err := http.Post(ca.formattedURL+"/did-registrar/dids/"+longFormDID+"/publications"+longFormDID,
+	respPub, err := http.Post(ca.formattedURL+"/did-registrar/dids/"+longFormDID+"/publications",
 		"application/json", postBody)
 	if err != nil {
 		return "", err
@@ -164,7 +164,7 @@ func (ca *CloudAgentAPI) DeactivateConnection(connID ConnectionID) error {
 	return nil
 }
 
-func (ca *CloudAgentAPI) CreateSchema(payload SchemaCreationPayload) (SchemaGUID, error) {
+func (ca *CloudAgentAPI) CreateSchema(payload SchemaCreationPayload) (SchemaID, error) {
 	postBody, err := toIOReader(payload)
 	if err != nil {
 		return "", err
@@ -186,12 +186,31 @@ func (ca *CloudAgentAPI) CreateSchema(payload SchemaCreationPayload) (SchemaGUID
 		return "", err
 	}
 
-	return schemaResp.SchemaGUID, nil
+	schemaID := ca.formattedURL + "/schema-registry/schemas/" + schemaResp.SchemaGUID + "/schema"
+	return schemaID, nil
+}
+
+func (ca *CloudAgentAPI) CreateCredentialOffer(payload CredentialOfferPayload) error {
+	postBody, err := toIOReader(payload)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.Post(ca.formattedURL+"/issue-credentials/credential-offers",
+		"application/json", postBody)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(resp.Body)
+		return errors.New("Credendial offer creation failed: status=" + resp.Status + "body=" + string(body))
+	}
+
+	return nil
 }
 
 /*
-func (ca *CloudAgentAPI) CreateVC() {}
-
 func (ca *CloudAgentAPI) DeactivateVC() {}
 
 func (ca *CloudAgentAPI) UpdateSchema() {}

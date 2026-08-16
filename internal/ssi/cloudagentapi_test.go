@@ -11,13 +11,13 @@ import (
 	"github.com/zafir0101/SSI-ENV/internal/ssi"
 )
 
-const caUrlString = "http://localhost:8080"
-const eaUrlString = "http://localhost:8081"
+const caUrlString = "http://host.docker.internal:8080"
+const eaUrlString = "http://host.docker.internal:8081/"
 
 var ca *ssi.CloudAgentAPI = createAgent(caUrlString)
 var ea *ssi.CloudAgentAPI = createAgent(eaUrlString)
-var co controller.Controller = controller.Controller{CloudAgentAPI: ca}
-var wallet controller.Controller = controller.Controller{CloudAgentAPI: ea}
+var co *controller.Controller = controller.NewController(ca)
+var wallet *controller.Controller = controller.NewController(ea)
 
 func createAgent(urlString string) *ssi.CloudAgentAPI {
 	agentURL, _ := url.Parse(urlString)
@@ -59,58 +59,46 @@ func TestCrudDID(t *testing.T) {
 	// fmt.Println(err.Error())
 	// }
 
-	// _, inv, err := co.CreateConnection("")
-	// if err != nil {
-	// fmt.Println(err.Error())
-	// }
-
-	// wallet.AcceptConnection(inv)
-
-	// time.Sleep(30 * time.Second)
-
-	// if err := co.DeactivateConnection(connId); err != nil {
-	// fmt.Println(err.Error())
-	// }
-	json := json.RawMessage(`{
-"$id": "https://example.com/driving-license-1.0",
-"$schema": "https://json-schema.org/draft/2020-12/schema",
-"description": "Driving License",
-"type": "object",
-"properties": {
-"emailAddress": {
-"type": "string",
-"format": "email"
-},
-"givenName": {
-"type": "string"
-},
-"familyName": {
-"type": "string"
-},
-"dateOfIssuance": {
-"type": "string",
-"format": "date-time"
-},
-"drivingLicenseID": {
-"type": "string"
-},
-"drivingClass": {
-"type": "integer"
-}
-},
-"required": [
-"emailAddress",
-"familyName",
-"dateOfIssuance",
-"drivingLicenseID",
-"drivingClass"
-],
-"additionalProperties": false
-}`)
-	schemaGUID, err := co.CreateSchema("Credencial de Cortesã do vini", json)
+	connID, inv, err := co.CreateConnection("")
 	if err != nil {
 		fmt.Println(err.Error())
 	}
 
-	fmt.Println(schemaGUID)
+	wallet.AcceptConnection("comer o vini", inv)
+
+	time.Sleep(15 * time.Second)
+
+	// if err := co.DeactivateConnection(connID); err != nil {
+	// fmt.Println(err.Error())
+	// }
+
+	schema := json.RawMessage(`
+    {
+        "$id": "https://example.com/driving-license-1.0",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+            "emailAddress": {"type": "string"},
+            "givenName": {"type": "string"},
+            "familyName": {"type": "string"}
+        },
+        "required": ["emailAddress", "givenName", "familyName"],
+        "additionalProperties": false
+    }`)
+
+	schemaID, err := co.CreateSchema("Credencial de Cortesã do vini", schema)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+
+	time.Sleep(30 * time.Second)
+
+	claims := json.RawMessage(`{
+    "emailAddress": "zeca.galhao@gmail.com",
+    "givenName": "Zeca Galhao",
+    "familyName": "galhao"
+  }`)
+	if err := co.CreateCredentialOffer(claims, connID, schemaID); err != nil {
+		fmt.Println(err.Error())
+	}
 }
