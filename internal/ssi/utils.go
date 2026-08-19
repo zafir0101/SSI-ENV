@@ -22,8 +22,8 @@ func toIOReader(req any) (io.Reader, error) {
 	return postBodyReader, nil
 }
 
-func createConnection(request ConnectionCreationPayload, agentURL string) (ConnectionID, InvitationOOB, error) {
-	postBody, err := toIOReader(request)
+func createConnection(payload ConnectionCreationPayload, agentURL string) (ConnectionID, InvitationOOB, error) {
+	postBody, err := toIOReader(payload)
 	if err != nil {
 		return "", "", err
 	}
@@ -52,8 +52,8 @@ func createConnection(request ConnectionCreationPayload, agentURL string) (Conne
 	return connResponse.ConnectionID, invitationOOB, nil
 }
 
-func acceptConnection(request ConnectionAcceptPayload, agentURL string) (ConnectionID, error) {
-	postBody, err := toIOReader(request)
+func acceptConnection(payload ConnectionAcceptPayload, agentURL string) (ConnectionID, error) {
+	postBody, err := toIOReader(payload)
 	if err != nil {
 		return "", err
 	}
@@ -127,4 +127,25 @@ func retrieveCredentialOffers(agentURL string) ([]RecordID, error) {
 	return recordIDs, nil
 }
 
-// func acceptCredentialOffer() {}
+func acceptCredentialOffer(payload OfferAcceptancePayload, recID RecordID, agentURL string) error {
+	postBody, err := toIOReader(payload)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.Post(agentURL+"/issue-credentials/records/"+recID+"/accept-offer",
+		"application/json", postBody)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("retrieving failed: status=%d body=%s", resp.StatusCode, string(body))
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	fmt.Println(string(body))
+
+	return nil
+}

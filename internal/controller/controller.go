@@ -127,8 +127,7 @@ func (co *Controller) CreateCredentialOffer(claims json.RawMessage,
 	connID ssi.ConnectionID, schemaID ssi.SchemaID) error {
 	payload := ssi.NewCredentialOfferPayload(claims, co.didPrism, connID, schemaID)
 
-	err := co.cloudAgentAPI.CreateCredentialOffer(payload)
-	if err != nil {
+	if err := co.cloudAgentAPI.CreateCredentialOffer(payload); err != nil {
 		return err
 	}
 
@@ -150,4 +149,14 @@ func (co *Controller) RetrieveCredentialOffers() ([]ssi.RecordID, error) {
 	}
 
 	return recordsID, err
+}
+
+func (co *Controller) AcceptCredentialOffer(recID ssi.RecordID) error {
+	payload := ssi.NewOfferAcceptancePayload(co.didPrism)
+
+	if err := co.cloudAgentAPI.AcceptCredentialOffer(payload, recID); err != nil {
+		return err
+	}
+
+	return nil
 }

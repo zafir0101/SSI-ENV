@@ -211,10 +211,19 @@ func (ca *CloudAgentAPI) CreateCredentialOffer(payload CredentialOfferPayload) e
 }
 
 func (ca *CloudAgentAPI) RetrieveCredentialOffers() ([]RecordID, error) {
-	recordsID, err := retrieveCredentialOffers(ca.formattedURL)
+	recordIDs, err := retrieveCredentialOffers(ca.formattedURL)
 	if err != nil {
 		return nil, err
 	}
 
-	return recordsID, nil
+	return recordIDs, nil
+}
+
+func (ca *CloudAgentAPI) AcceptCredentialOffer(payload OfferAcceptancePayload, recID RecordID) error {
+	err := acceptCredentialOffer(payload, recID, ca.formattedURL)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -101,3 +101,9 @@ type CredentialOfferPayload struct {
 	ConnectionID     ConnectionID    `json:"connectionId"`
 	SchemaID         SchemaID        `json:"schemaId"`
 }
+
+// Types for accepting a Credential Offer
+type OfferAcceptancePayload struct {
+	SubjectID DIDPrism `json:"subjectId"`
+	KeyID     DIDPrism `json:"keyId"`
+}

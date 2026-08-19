@@ -12,7 +12,7 @@ import (
 )
 
 const caUrlString = "http://host.docker.internal:8080"
-const eaUrlString = "http://host.docker.internal:8081/"
+const eaUrlString = "http://host.docker.internal:8081"
 
 var ca *ssi.CloudAgentAPI = createAgent(caUrlString)
 var ea *ssi.CloudAgentAPI = createAgent(eaUrlString)
@@ -102,5 +102,13 @@ func TestCrudDID(t *testing.T) {
 		fmt.Println(err.Error())
 	}
 
-	fmt.Print(wallet.RetrieveCredentialOffers())
+	// O edge agent vai utilizar o longform (nao ira publicar o did)
+	_, _ = wallet.CreateDID(pksID, pksPurpose)
+
+	time.Sleep(30 * time.Second)
+
+	recordID, _ := wallet.RetrieveCredentialOffers()
+	if err := wallet.AcceptCredentialOffer(recordID[0]); err != nil {
+		fmt.Println(err.Error())
+	}
 }

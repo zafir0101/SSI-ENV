@@ -1,6 +1,8 @@
 package ssi
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
 func assemblePublicKeys(pksID []string, pksPurpose []KeyPurpose) ([]publicKey, error) {
 	var publicKeys []publicKey
@@ -81,5 +83,11 @@ func NewCredentialOfferPayload(claims json.RawMessage, issuerDID DIDPrism,
 		IssuingDID:       issuerDID,
 		ConnectionID:     connID,
 		SchemaID:         schemaID,
+	}
+}
+
+func NewOfferAcceptancePayload(didPrism DIDPrism) OfferAcceptancePayload {
+	return OfferAcceptancePayload{
+		SubjectID: didPrism,
 	}
 }
