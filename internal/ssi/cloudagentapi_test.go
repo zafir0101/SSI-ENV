@@ -102,5 +102,5 @@ func TestCrudDID(t *testing.T) {
 		fmt.Println(err.Error())
 	}
 
-	fmt.Print(co.RetrieveCredentialOffers())
+	fmt.Print(wallet.RetrieveCredentialOffers())
 }
