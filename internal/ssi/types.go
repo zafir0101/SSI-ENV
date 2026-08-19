@@ -7,7 +7,17 @@ type DIDPrism = string
 type InvitationOOB = string
 type ConnectionID = string
 
+type RecordID string
 type SchemaID = string
+
+// Types to parse a retrieving credential offers response
+type contents struct {
+	RecordID RecordID `json:"recordId"`
+}
+
+type credentialOffersRetrievalResponse struct {
+	Contents []contents `json:"contents"`
+}
 
 // Types to parse a schema creation response
 type schemaGUID = string

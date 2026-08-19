@@ -210,8 +210,11 @@ func (ca *CloudAgentAPI) CreateCredentialOffer(payload CredentialOfferPayload) e
 	return nil
 }
 
-/*
-func (ca *CloudAgentAPI) DeactivateVC() {}
+func (ca *CloudAgentAPI) RetrieveCredentialOffers() ([]RecordID, error) {
+	recordsID, err := retrieveCredentialOffers(ca.formattedURL)
+	if err != nil {
+		return nil, err
+	}
 
-func (ca *CloudAgentAPI) UpdateSchema() {}
-*/
+	return recordsID, nil
+}

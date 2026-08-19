@@ -101,3 +101,30 @@ func deactivateConnection(connID ConnectionID, agentURL string) error {
 	}
 	return nil
 }
+
+func retrieveCredentialOffers(agentURL string) ([]RecordID, error) {
+	resp, err := http.Get(agentURL + "/issue-credentials/records")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("retrieving failed: status=%d body=%s", resp.StatusCode, string(body))
+	}
+
+	var offerResponse credentialOffersRetrievalResponse
+	if err := json.NewDecoder(resp.Body).Decode(&offerResponse); err != nil {
+		return nil, err
+	}
+
+	var recordIDs []RecordID
+	for _, content := range offerResponse.Contents {
+		recordIDs = append(recordIDs, content.RecordID)
+	}
+
+	return recordIDs, nil
+}
+
+// func acceptCredentialOffer() {}

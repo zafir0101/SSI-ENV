@@ -101,4 +101,6 @@ func TestCrudDID(t *testing.T) {
 	if err := co.CreateCredentialOffer(claims, connID, schemaID); err != nil {
 		fmt.Println(err.Error())
 	}
+
+	fmt.Print(co.RetrieveCredentialOffers())
 }
