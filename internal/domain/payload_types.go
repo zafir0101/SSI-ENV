@@ -1,8 +1,10 @@
-package ssi
+package domain
 
 import (
 	"encoding/json"
 	"errors"
+
+	"github.com/zafir0101/SSI-ENV/internal/ssi"
 )
 
 // Types to request a did prism
@@ -32,26 +34,24 @@ type publicKey struct {
 	Purpose string `json:"purpose"`
 }
 
-type service struct{}
-
 type documentTemplate struct {
-	PublicKeys []publicKey `json:"publicKeys"`
-	Services   []service   `json:"services"`
+	PublicKeys []publicKey   `json:"publicKeys"`
+	Services   []ssi.Service `json:"services"`
 }
 
-type DIDCreationPayload struct {
+type didCreationPayload struct {
 	DocumentTemplate documentTemplate `json:"documentTemplate"`
 }
 
 // Types for updating a DID Prism document (add or remove a key)
-type ActionType int
+type actionType int
 
 const (
-	AddKey ActionType = iota
-	RemoveKey
+	addKey actionType = iota
+	removeKey
 )
 
-func (actT ActionType) string() (string, error) {
+func (actT actionType) string() (string, error) {
 	strings := [2]string{"ADD_KEY", "REMOVE_KEY"}
 
 	if actT < 0 || int(actT) >= len(strings) {
@@ -71,39 +71,57 @@ type action struct {
 	RemoveKey removeKey_t `json:"removeKey"`
 }
 
-type DIDUpdatePayload struct {
+type didUpdatePayload struct {
 	Acts []action `json:"actions"`
 }
 
 // Types for creating a connection request
-type ConnectionCreationPayload struct {
+type connectionCreationPayload struct {
 	Label string `json:"label"`
 }
 
 // Types for accepting a connection request
-type ConnectionAcceptPayload struct {
-	Invitation InvitationOOB `json:"invitation"`
+type connectionAcceptPayload struct {
+	Invitation ssi.InvitationOOB `json:"invitation"`
 }
 
-type SchemaCreationPayload struct {
+type schemaCreationPayload struct {
 	Name    string          `json:"name"`
 	Version string          `json:"version"`
 	Type    string          `json:"type"`
 	Schema  json.RawMessage `json:"schema"`
 	Tags    []string        `json:"tags"`
-	Author  DIDPrism        `json:"author"`
+	Author  ssi.DIDPrism    `json:"author"`
 }
 
-type CredentialOfferPayload struct {
-	Claims           json.RawMessage `json:"claims"`
-	CredentialFormat string          `json:"credentialFormat"`
-	IssuingDID       DIDPrism        `json:"issuingDID"`
-	ConnectionID     ConnectionID    `json:"connectionId"`
-	SchemaID         SchemaID        `json:"schemaId"`
+type credentialOfferPayload struct {
+	Claims           json.RawMessage  `json:"claims"`
+	CredentialFormat string           `json:"credentialFormat"`
+	IssuingDID       ssi.DIDPrism     `json:"issuingDID"`
+	ConnectionID     ssi.ConnectionID `json:"connectionId"`
+	SchemaID         ssi.SchemaID     `json:"schemaId"`
 }
 
 // Types for accepting a Credential Offer
-type OfferAcceptancePayload struct {
-	SubjectID DIDPrism `json:"subjectId"`
-	KeyID     DIDPrism `json:"keyId"`
+type offerAcceptancePayload struct {
+	SubjectID ssi.DIDPrism `json:"subjectId"`
+	KeyID     ssi.DIDPrism `json:"keyId"`
+}
+
+// Types for requesting a presentation proof
+type options struct {
+	Challenge string       `json:"challenge"`
+	Domain    ssi.DIDPrism `json:"domain"`
+}
+
+type schemaCredential struct {
+	SchemaID     ssi.SchemaID `json:"schemaId"`
+	TrustIssuers []string     `json:"trustIssuers"`
+}
+
+type proofRequestPayload struct {
+	Goal         string             `json:"goal"`
+	ConnectionID ssi.ConnectionID   `json:"connectionId"`
+	Proofs       []schemaCredential `json:"proofs"`
+	Options      options            `json:"options"`
 }

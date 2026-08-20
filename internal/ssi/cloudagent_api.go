@@ -22,7 +22,7 @@ func NewCloudAgentAPI(agentURL *url.URL) *CloudAgentAPI {
 	}
 }
 
-func (ca *CloudAgentAPI) CreateDID(payload DIDCreationPayload) (DIDPrism, error) {
+func (ca *CloudAgentAPI) CreateDID(payload Payload) (DIDPrism, error) {
 	postBody, err := toIOReader(payload)
 	if err != nil {
 		return "", err
@@ -36,7 +36,7 @@ func (ca *CloudAgentAPI) CreateDID(payload DIDCreationPayload) (DIDPrism, error)
 
 	if respReg.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(respReg.Body)
-		return "", errors.New("Register failed: status=" + respReg.Status + "body=" + string(body))
+		return "", errors.New("registration failed: status=" + respReg.Status + "body=" + string(body))
 	}
 
 	var didRegResponse didRegResponse
@@ -54,7 +54,7 @@ func (ca *CloudAgentAPI) CreateDID(payload DIDCreationPayload) (DIDPrism, error)
 
 	if respPub.StatusCode != http.StatusAccepted {
 		body, _ := io.ReadAll(respPub.Body)
-		return "", errors.New("Publish failed: status=" + respPub.Status + "body=" + string(body))
+		return "", errors.New("publishing failed: status=" + respPub.Status + "body=" + string(body))
 	}
 
 	var didPubResponse didPubResponse
@@ -87,7 +87,7 @@ func (ca *CloudAgentAPI) ResolveDID(did DIDPrism) (DIDPrismDocument, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return DIDPrismDocument{}, errors.New("DID Resolution failed: status=" + resp.Status + "body=" + string(body))
+		return DIDPrismDocument{}, errors.New("resolution failed: status=" + resp.Status + "body=" + string(body))
 	}
 
 	var didDocument DIDPrismDocument
@@ -99,7 +99,7 @@ func (ca *CloudAgentAPI) ResolveDID(did DIDPrism) (DIDPrismDocument, error) {
 }
 
 // Limitada em adicionar ou remover chaves
-func (ca *CloudAgentAPI) UpdateDID(payload DIDUpdatePayload, did DIDPrism) error {
+func (ca *CloudAgentAPI) UpdateDID(payload Payload, did DIDPrism) error {
 	postBody, err := toIOReader(payload)
 	if err != nil {
 		return err
@@ -114,7 +114,7 @@ func (ca *CloudAgentAPI) UpdateDID(payload DIDUpdatePayload, did DIDPrism) error
 
 	if resp.StatusCode != http.StatusAccepted {
 		body, _ := io.ReadAll(resp.Body)
-		return errors.New("DID Update failed: status=" + resp.Status + "body=" + string(body))
+		return errors.New("update failed: status=" + resp.Status + "body=" + string(body))
 	}
 
 	return nil
@@ -131,13 +131,13 @@ func (ca *CloudAgentAPI) DeactivateDID(did DIDPrism) error {
 
 	if resp.StatusCode != http.StatusAccepted {
 		body, _ := io.ReadAll(resp.Body)
-		return errors.New("DID deactivation failed: status=" + resp.Status + "body=" + string(body))
+		return errors.New("deactivation failed: status=" + resp.Status + "body=" + string(body))
 	}
 
 	return nil
 }
 
-func (ca *CloudAgentAPI) CreateConnection(payload ConnectionCreationPayload) (ConnectionID, InvitationOOB, error) {
+func (ca *CloudAgentAPI) CreateConnection(payload Payload) (ConnectionID, InvitationOOB, error) {
 	connId, invOOB, err := createConnection(payload, ca.formattedURL)
 	if err != nil {
 		return "", "", err
@@ -146,7 +146,7 @@ func (ca *CloudAgentAPI) CreateConnection(payload ConnectionCreationPayload) (Co
 	return connId, invOOB, nil
 }
 
-func (ca *CloudAgentAPI) AcceptConnection(payload ConnectionAcceptPayload) (ConnectionID, error) {
+func (ca *CloudAgentAPI) AcceptConnection(payload Payload) (ConnectionID, error) {
 	connId, err := acceptConnection(payload, ca.formattedURL)
 	if err != nil {
 		return "", err
@@ -164,7 +164,7 @@ func (ca *CloudAgentAPI) DeactivateConnection(connID ConnectionID) error {
 	return nil
 }
 
-func (ca *CloudAgentAPI) CreateSchema(payload SchemaCreationPayload) (SchemaID, error) {
+func (ca *CloudAgentAPI) CreateSchema(payload Payload) (SchemaID, error) {
 	postBody, err := toIOReader(payload)
 	if err != nil {
 		return "", err
@@ -178,7 +178,7 @@ func (ca *CloudAgentAPI) CreateSchema(payload SchemaCreationPayload) (SchemaID, 
 
 	if resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(resp.Body)
-		return "", errors.New("Schema creation failed: status=" + resp.Status + "body=" + string(body))
+		return "", errors.New("schema creation failed: status=" + resp.Status + "body=" + string(body))
 	}
 
 	var schemaResp schemaResponse
@@ -190,7 +190,7 @@ func (ca *CloudAgentAPI) CreateSchema(payload SchemaCreationPayload) (SchemaID, 
 	return schemaID, nil
 }
 
-func (ca *CloudAgentAPI) CreateCredentialOffer(payload CredentialOfferPayload) error {
+func (ca *CloudAgentAPI) CreateCredentialOffer(payload Payload) error {
 	postBody, err := toIOReader(payload)
 	if err != nil {
 		return err
@@ -204,7 +204,7 @@ func (ca *CloudAgentAPI) CreateCredentialOffer(payload CredentialOfferPayload) e
 
 	if resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(resp.Body)
-		return errors.New("Credendial offer creation failed: status=" + resp.Status + "body=" + string(body))
+		return errors.New("credendial offer creation failed: status=" + resp.Status + "body=" + string(body))
 	}
 
 	return nil
@@ -219,11 +219,36 @@ func (ca *CloudAgentAPI) RetrieveCredentialOffers() ([]RecordID, error) {
 	return recordIDs, nil
 }
 
-func (ca *CloudAgentAPI) AcceptCredentialOffer(payload OfferAcceptancePayload, recID RecordID) error {
+func (ca *CloudAgentAPI) AcceptCredentialOffer(payload Payload, recID RecordID) error {
 	err := acceptCredentialOffer(payload, recID, ca.formattedURL)
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (ca *CloudAgentAPI) CreateProofRequest(payload Payload) (PresentationID, error) {
+	postBody, err := toIOReader(payload)
+	if err != nil {
+		return "", err
+	}
+
+	resp, err := http.Post(ca.formattedURL+"/present-proof/presentations",
+		"application/json", postBody)
+	if err != nil {
+		return "", err
+	}
+
+	if resp.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(resp.Body)
+		return "", errors.New("proof request creation failed: status=" + resp.Status + "body=" + string(body))
+	}
+
+	var proofReqRes proofRequestResponse
+	if err := json.NewDecoder(resp.Body).Decode(&proofReqRes); err != nil {
+		return "", err
+	}
+
+	return proofReqRes.PresentationID, nil
 }

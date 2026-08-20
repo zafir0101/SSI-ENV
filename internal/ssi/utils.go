@@ -11,8 +11,8 @@ import (
 	"time"
 )
 
-func toIOReader(req any) (io.Reader, error) {
-	postBodyJSON, err := json.MarshalIndent(req, "", "  ")
+func toIOReader(payload Payload) (io.Reader, error) {
+	postBodyJSON, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
 		return nil, err
 	}
@@ -22,7 +22,7 @@ func toIOReader(req any) (io.Reader, error) {
 	return postBodyReader, nil
 }
 
-func createConnection(payload ConnectionCreationPayload, agentURL string) (ConnectionID, InvitationOOB, error) {
+func createConnection(payload Payload, agentURL string) (ConnectionID, InvitationOOB, error) {
 	postBody, err := toIOReader(payload)
 	if err != nil {
 		return "", "", err
@@ -52,7 +52,7 @@ func createConnection(payload ConnectionCreationPayload, agentURL string) (Conne
 	return connResponse.ConnectionID, invitationOOB, nil
 }
 
-func acceptConnection(payload ConnectionAcceptPayload, agentURL string) (ConnectionID, error) {
+func acceptConnection(payload Payload, agentURL string) (ConnectionID, error) {
 	postBody, err := toIOReader(payload)
 	if err != nil {
 		return "", err
@@ -127,7 +127,7 @@ func retrieveCredentialOffers(agentURL string) ([]RecordID, error) {
 	return recordIDs, nil
 }
 
-func acceptCredentialOffer(payload OfferAcceptancePayload, recID RecordID, agentURL string) error {
+func acceptCredentialOffer(payload Payload, recID RecordID, agentURL string) error {
 	postBody, err := toIOReader(payload)
 	if err != nil {
 		return err
@@ -141,11 +141,8 @@ func acceptCredentialOffer(payload OfferAcceptancePayload, recID RecordID, agent
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("retrieving failed: status=%d body=%s", resp.StatusCode, string(body))
+		return fmt.Errorf("acceptance failed: status=%d body=%s", resp.StatusCode, string(body))
 	}
-
-	body, _ := io.ReadAll(resp.Body)
-	fmt.Println(string(body))
 
 	return nil
 }

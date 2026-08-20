@@ -1,5 +1,7 @@
 package ssi
 
+type Payload = any
+
 // Alias que podem ser extensíveis para structs com verificação
 // a partir de regex
 type DIDPrism = string
@@ -7,8 +9,14 @@ type DIDPrism = string
 type InvitationOOB = string
 type ConnectionID = string
 
+type PresentationID = string
 type RecordID = string
 type SchemaID = string
+
+// Types for parsing a proof request creation response
+type proofRequestResponse struct {
+	PresentationID PresentationID `json:"presentationId"`
+}
 
 // Types to parse a retrieving credential offers response
 type content struct {
@@ -52,7 +60,9 @@ type connectionResponse struct {
 }
 
 // Types for generating a DID Prism document (handle a did resolve)
-type publicKeyJwk struct {
+type Service struct{}
+
+type publicKeyJWK struct {
 	CRV string `json:"crv"`
 	X   string `json:"x"`
 	Y   string `json:"y"`
@@ -63,7 +73,7 @@ type verificationMethod struct {
 	ID           string       `json:"id"`
 	Type         string       `json:"type"`
 	Controller   DIDPrism     `json:"controller"`
-	PublicKeyJwk publicKeyJwk `json:"publicKeyJwk"`
+	PublicKeyJwk publicKeyJWK `json:"publicKeyJwk"`
 }
 type didDocument struct {
 	Context              []string             `json:"@context"`
@@ -75,7 +85,7 @@ type didDocument struct {
 	KeyAgreement         []string             `json:"keyAgreement"`
 	CapabilityInvocation []string             `json:"capabilityInvocation"`
 	CapabilityDelegation []string             `json:"capabilityDelegation"`
-	Service              []service            `json:"service"`
+	Service              []Service            `json:"service"`
 }
 
 type didDocumentMetadata struct {

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zafir0101/SSI-ENV/internal/controller"
+	"github.com/zafir0101/SSI-ENV/internal/domain"
 	"github.com/zafir0101/SSI-ENV/internal/ssi"
 )
 
@@ -16,8 +16,8 @@ const eaUrlString = "http://host.docker.internal:8081"
 
 var ca *ssi.CloudAgentAPI = createAgent(caUrlString)
 var ea *ssi.CloudAgentAPI = createAgent(eaUrlString)
-var co *controller.Controller = controller.NewController(ca)
-var wallet *controller.Controller = controller.NewController(ea)
+var co *domain.InstitutionController = domain.NewController(ca)
+var wallet *domain.InstitutionController = domain.NewController(ea)
 
 func createAgent(urlString string) *ssi.CloudAgentAPI {
 	agentURL, _ := url.Parse(urlString)
@@ -26,7 +26,7 @@ func createAgent(urlString string) *ssi.CloudAgentAPI {
 
 func TestCrudDID(t *testing.T) {
 	pksID := []string{"auth-1", "issue-1"}
-	pksPurpose := []ssi.KeyPurpose{ssi.Authentication, ssi.AssertionMethod}
+	pksPurpose := []domain.KeyPurpose{domain.Authentication, domain.AssertionMethod}
 
 	did, err := co.CreateDID(pksID, pksPurpose)
 	if err != nil {
@@ -111,4 +111,11 @@ func TestCrudDID(t *testing.T) {
 	if err := wallet.AcceptCredentialOffer(recordID[0]); err != nil {
 		fmt.Println(err.Error())
 	}
+
+	presentationID, err := co.CreateProofRequest("Provar a pureza do vini", connID, schemaID)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+
+	fmt.Println(presentationID)
 }
