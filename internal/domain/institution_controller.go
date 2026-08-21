@@ -5,7 +5,6 @@ package domain
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"strconv"
 
 	"github.com/zafir0101/SSI-ENV/internal/ssi"
@@ -16,7 +15,7 @@ type InstitutionController struct {
 	institutionDIDPrism ssi.DIDPrism
 	PublishedsDIDs      map[string]ssi.DIDPrism     // Sera serializado, apenas DIDs publicados na máquina
 	connections         map[string]ssi.ConnectionID // Será serializado, apenas connections realizados na maquina
-	Schemas             map[string]ssi.SchemaID     // Não será serializado, irá buscar os schemas atualizados, mesmo de máquinas diferentes
+	schemas             map[string]ssi.SchemaID     // Será serializado, apenas schemas criados na maquina
 	Credentials         map[string]ssi.RecordID
 	// CredentialOffersReceived
 	// CredentialOffersSent
@@ -30,7 +29,7 @@ func NewController(cloudAgentAPI *ssi.CloudAgentAPI) *InstitutionController {
 		cloudAgentAPI:  cloudAgentAPI,
 		PublishedsDIDs: make(map[string]ssi.DIDPrism),
 		connections:    make(map[string]ssi.ConnectionID),
-		Schemas:        make(map[string]ssi.SchemaID),
+		schemas:        make(map[string]ssi.SchemaID),
 		Credentials:    make(map[string]ssi.RecordID),
 	}
 }
@@ -183,8 +182,13 @@ func (co *InstitutionController) CreateSchema(schemaName string, schema json.Raw
 		return err
 	}
 
-	co.Schemas[schemaName] = schemaID // Não sera necessário, uma vez que toda vez que iniciar o app ele ira recuperar o estado atual
+	co.schemas[schemaName] = schemaID
+
 	return nil
+}
+
+func (co *InstitutionController) RetrieveSchemas() map[string]ssi.SchemaID {
+	return co.schemas
 }
 
 func (co *InstitutionController) CreateCredentialOffer(claims json.RawMessage,

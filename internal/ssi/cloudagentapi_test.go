@@ -1,6 +1,7 @@
 package ssi_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"testing"
@@ -68,39 +69,47 @@ func TestCrudDID(t *testing.T) {
 	*/
 
 	// Teste de Connections
-	label := "ConectarNoVinizao"
-	_, err = co.CreateConnection(label)
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-
-	// wallet.AcceptConnection(label, inv)
-
-	time.Sleep(15 * time.Second)
-
-	if err := co.DeactivateConnection(label); err != nil {
-		fmt.Println(err.Error())
-	}
 	/*
-			schema := json.RawMessage(`
-		    {
-		        "$id": "https://example.com/driving-license-1.0",
-		        "$schema": "https://json-schema.org/draft/2020-12/schema",
-		        "type": "object",
-		        "properties": {
-		            "emailAddress": {"type": "string"},
-		            "givenName": {"type": "string"},
-		            "familyName": {"type": "string"}
-		        },
-		        "required": ["emailAddress", "givenName", "familyName"],
-		        "additionalProperties": false
-		    }`)
+		label := "ConectarNoVinizao"
+		_, err = co.CreateConnection(label)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
 
-			schemaID, err := co.CreateSchema("Credencial de Cortesã do vini", schema)
-			if err != nil {
-				fmt.Println(err.Error())
-			}
+		// wallet.AcceptConnection(label, inv)
 
+		time.Sleep(15 * time.Second)
+
+		if err := co.DeactivateConnection(label); err != nil {
+			fmt.Println(err.Error())
+		}
+	*/
+
+	// Teste para Schemas
+	/*
+		schema := json.RawMessage(`
+			    {
+			        "$id": "https://example.com/driving-license-1.0",
+			        "$schema": "https://json-schema.org/draft/2020-12/schema",
+			        "type": "object",
+			        "properties": {
+			            "emailAddress": {"type": "string"},
+			            "givenName": {"type": "string"},
+			            "familyName": {"type": "string"}
+			        },
+			        "required": ["emailAddress", "givenName", "familyName"],
+			        "additionalProperties": false
+			    }`)
+
+		label := "Credencial de Cortesã do vini"
+		if err := co.CreateSchema(label, schema); err != nil {
+			fmt.Println(err.Error())
+		}
+
+		fmt.Println(co.RetrieveSchemas()[label])
+	*/
+
+	/*
 			time.Sleep(30 * time.Second)
 
 			claims := json.RawMessage(`{
