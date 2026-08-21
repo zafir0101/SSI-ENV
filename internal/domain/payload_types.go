@@ -2,7 +2,6 @@ package domain
 
 import (
 	"encoding/json"
-	"errors"
 
 	"github.com/zafir0101/SSI-ENV/internal/ssi"
 )
@@ -10,6 +9,7 @@ import (
 // Types to request a did prism
 type KeyPurpose int
 
+const lenKeyPurpose = 5
 const (
 	Authentication KeyPurpose = iota
 	AssertionMethod
@@ -18,15 +18,15 @@ const (
 	CapabilityDelegation
 )
 
-func (p KeyPurpose) string() (string, error) {
+func (p KeyPurpose) isValid() bool {
+	return p >= 0 || int(p) < lenKeyPurpose
+}
+
+func (p KeyPurpose) string() string {
 	strings := [5]string{"authentication", "assertionMethod", "KeyAgreement",
 		"capabilityInvocation", "capabilituDelegation"}
 
-	if p < 0 || int(p) >= len(strings) {
-		return "", errors.New("invalid purpose")
-	}
-
-	return strings[p], nil
+	return strings[p]
 }
 
 type publicKey struct {
@@ -51,14 +51,10 @@ const (
 	removeKey
 )
 
-func (actT actionType) string() (string, error) {
+func (actT actionType) string() string {
 	strings := [2]string{"ADD_KEY", "REMOVE_KEY"}
 
-	if actT < 0 || int(actT) >= len(strings) {
-		return "", errors.New("invalid action")
-	}
-
-	return strings[actT], nil
+	return strings[actT]
 }
 
 type removeKey_t struct {
@@ -66,9 +62,9 @@ type removeKey_t struct {
 }
 
 type action struct {
-	ActType   string      `json:"actionType"`
-	AddKey    publicKey   `json:"addKey"`
-	RemoveKey removeKey_t `json:"removeKey"`
+	ActType   string       `json:"actionType"`
+	AddKey    *publicKey   `json:"addKey,omitempty"`
+	RemoveKey *removeKey_t `json:"removeKey,omitempty"`
 }
 
 type didUpdatePayload struct {

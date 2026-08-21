@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -104,9 +105,13 @@ func (ca *CloudAgentAPI) UpdateDID(payload Payload, did DIDPrism) error {
 	}
 	defer resp.Body.Close()
 
+	body, _ := io.ReadAll(resp.Body)
+	fmt.Println(string(body))
+
 	if resp.StatusCode != http.StatusAccepted {
-		body, _ := io.ReadAll(resp.Body)
-		return errors.New("update failed: status=" + resp.Status + "body=" + string(body))
+		// body, _ := io.ReadAll(resp.Body)
+		fmt.Println("deu bosta")
+		// return errors.New("update failed: status=" + resp.Status + "body=" + string(body))
 	}
 
 	return nil

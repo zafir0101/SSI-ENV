@@ -2,6 +2,7 @@ package domain
 
 import (
 	"encoding/json"
+	"errors"
 
 	"github.com/google/uuid"
 	"github.com/zafir0101/SSI-ENV/internal/ssi"
@@ -11,10 +12,12 @@ func assemblePublicKeys(pksID []string, pksPurpose []KeyPurpose) ([]publicKey, e
 	var publicKeys []publicKey
 
 	for i, pkID := range pksID {
-		pur, err := KeyPurpose(pksPurpose[i]).string()
-		if err != nil {
-			return nil, err
+		if !pksPurpose[i].isValid() {
+			return nil, errors.New("invalid key purpose")
 		}
+
+		pur := KeyPurpose(pksPurpose[i]).string()
+
 		pk := publicKey{ID: pkID, Purpose: pur}
 		publicKeys = append(publicKeys, pk)
 	}
@@ -36,23 +39,18 @@ func newDIDCreationPayload(pksID []string, pksPurpose []KeyPurpose) (didCreation
 	return didCPayload, nil
 }
 
-func newDIDUpdatePayload(actsType []actionType, pksID []string, pksPurpose []KeyPurpose) (didUpdatePayload, error) {
-	publicKeys, err := assemblePublicKeys(pksID, pksPurpose)
+func newDIDUpdatePayload(actType actionType, pkID string, pkPurpose KeyPurpose) (didUpdatePayload, error) {
+	publicKeys, err := assemblePublicKeys([]string{pkID}, []KeyPurpose{pkPurpose})
 	if err != nil {
 		return didUpdatePayload{}, err
 	}
 
 	var acts []action
-	for i, _ := range actsType {
-		actType, err := actionType(actsType[i]).string()
-		if err != nil {
-			return didUpdatePayload{}, err
-		}
-		if actsType[i] == addKey {
-			acts = append(acts, action{ActType: actType, AddKey: publicKeys[i]})
-		} else {
-			acts = append(acts, action{ActType: actType, RemoveKey: removeKey_t{ID: publicKeys[i].ID}})
-		}
+
+	if actType == addKey {
+		acts = append(acts, action{ActType: actType.string(), AddKey: &publicKeys[0]})
+	} else {
+		acts = append(acts, action{ActType: actType.string(), RemoveKey: &removeKey_t{ID: publicKeys[0].ID}})
 	}
 
 	didUpdatePayload := didUpdatePayload{Acts: acts}

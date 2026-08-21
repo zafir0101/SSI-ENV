@@ -5,6 +5,8 @@ package domain
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strconv"
 
 	"github.com/zafir0101/SSI-ENV/internal/ssi"
 )
@@ -13,26 +15,31 @@ type InstitutionController struct {
 	cloudAgentAPI       *ssi.CloudAgentAPI
 	institutionDIDPrism ssi.DIDPrism
 	PublishedsDIDs      map[string]ssi.DIDPrism     // Sera serializado, apenas DIDs publicados na máquina
-	Connections         map[string]ssi.ConnectionID // Será serializado, apenas connections realizados na maquina
+	connections         map[string]ssi.ConnectionID // Será serializado, apenas connections realizados na maquina
 	Schemas             map[string]ssi.SchemaID     // Não será serializado, irá buscar os schemas atualizados, mesmo de máquinas diferentes
 	Credentials         map[string]ssi.RecordID
 	// CredentialOffersReceived
 	// CredentialOffersSent
 	// ProvenPresentations
+
+	num_keys int
 }
 
 func NewController(cloudAgentAPI *ssi.CloudAgentAPI) *InstitutionController {
 	return &InstitutionController{
 		cloudAgentAPI:  cloudAgentAPI,
 		PublishedsDIDs: make(map[string]ssi.DIDPrism),
-		Connections:    make(map[string]ssi.ConnectionID),
+		connections:    make(map[string]ssi.ConnectionID),
 		Schemas:        make(map[string]ssi.SchemaID),
 		Credentials:    make(map[string]ssi.RecordID),
 	}
 }
 
 // Considerar retirar o id e purpose e gerar 2 chaves padrao. Caso o algoritmo da chave inclua o id, gerar um nonce
-func (co *InstitutionController) CreateDID(pksID []string, pksPurpose []KeyPurpose) error {
+func (co *InstitutionController) CreateDID() error {
+	pksID := []string{"key1-authentication", "key2-assertionMethod"}
+	pksPurpose := []KeyPurpose{Authentication, AssertionMethod}
+
 	payload, err := newDIDCreationPayload(pksID, pksPurpose)
 	if err != nil {
 		return err
@@ -42,7 +49,9 @@ func (co *InstitutionController) CreateDID(pksID []string, pksPurpose []KeyPurpo
 	if err != nil {
 		return err
 	}
+
 	co.institutionDIDPrism = did
+	co.num_keys = 2
 
 	return nil
 }
@@ -66,18 +75,45 @@ func (co *InstitutionController) ResolveDID(did ssi.DIDPrism) (ssi.DIDPrismDocum
 	return didDoc, err
 }
 
-func (co *InstitutionController) UpdateDID(actsType []actionType, pksID []string, pksPurpose []KeyPurpose) error {
+func (co *InstitutionController) AddKeyToDID(pkPurpose KeyPurpose) error {
 	if co.institutionDIDPrism == "" {
 		return errors.New("First create a did")
 	}
 
-	payload, err := newDIDUpdatePayload(actsType, pksID, pksPurpose)
+	if !pkPurpose.isValid() {
+		return errors.New("invalid key purpose")
+	}
+
+	pkID := "key" + strconv.Itoa(co.num_keys+1) + "-" + pkPurpose.string()
+	payload, err := newDIDUpdatePayload(addKey, pkID, pkPurpose)
 	if err != nil {
 		return err
 	}
 
+	json, _ := json.MarshalIndent(payload, "", " ")
+	fmt.Println(string(json))
+
+	if err := co.cloudAgentAPI.UpdateDID(payload, co.institutionDIDPrism); err != nil {
+		return err
+	}
+
+	co.num_keys++
+
+	return nil
+}
+
+func (co *InstitutionController) RemoveDIDKey(pkID string, pkPurpose KeyPurpose) error {
 	if co.institutionDIDPrism == "" {
 		return errors.New("First create a did")
+	}
+
+	if !pkPurpose.isValid() {
+		return errors.New("invalid key purpose")
+	}
+
+	payload, err := newDIDUpdatePayload(removeKey, pkID, pkPurpose)
+	if err != nil {
+		return err
 	}
 
 	if err := co.cloudAgentAPI.UpdateDID(payload, co.institutionDIDPrism); err != nil {
@@ -107,7 +143,7 @@ func (co *InstitutionController) CreateConnection(label string) (ssi.InvitationO
 		return "", err
 	}
 
-	co.Connections[label] = connID
+	co.connections[label] = connID
 	return invOOB, nil
 }
 
@@ -119,12 +155,12 @@ func (co *InstitutionController) AcceptConnection(label string, invOOB ssi.Invit
 		return nil
 	}
 
-	co.Connections[label] = connID
+	co.connections[label] = connID
 	return nil
 }
 
 func (co *InstitutionController) DeactivateConnection(label string) error {
-	connID := co.Connections[label]
+	connID := co.connections[label]
 	if connID == "" {
 		return errors.New("No connections with label " + label)
 	}
@@ -133,7 +169,7 @@ func (co *InstitutionController) DeactivateConnection(label string) error {
 		return err
 	}
 
-	delete(co.Connections, label)
+	delete(co.connections, label)
 
 	return nil
 }
@@ -195,7 +231,7 @@ func (co *InstitutionController) AcceptCredentialOffer(recID ssi.RecordID) error
 // sei exatamente se o dado do campo proof é usado internamente para validar a apresentação do holder.
 func (co *InstitutionController) CreateProofRequest(goal string, connLabel string,
 	schemaID ssi.SchemaID) (ssi.PresentationID, error) {
-	connID := co.Connections[connLabel]
+	connID := co.connections[connLabel]
 	if connID == "" {
 		return "", errors.New("No connections with label " + connLabel)
 	}
@@ -218,6 +254,6 @@ func (co *InstitutionController) AcceptProofRequest(credentialLabel string, pres
 
 	payload := newProofRequestAcceptancePayload(recID)
 
-	err := co.cloudAgentAPI.AcceptProofRequest(payload, presID)
+	return co.cloudAgentAPI.AcceptProofRequest(payload, presID)
 
 }
