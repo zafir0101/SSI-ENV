@@ -55,30 +55,33 @@ func TestCrudDID(t *testing.T) {
 	*/
 
 	// Teste de Update DID
+	/*
+		if err := co.AddKeyToDID(0); err != nil {
+			fmt.Println(err.Error())
+		}
 
-	if err := co.AddKeyToDID(0); err != nil {
+		time.Sleep(30 * time.Second)
+
+		if err := co.RemoveDIDKey("key3-authentication", 0); err != nil {
+			fmt.Println(err.Error())
+		}
+	*/
+
+	// Teste de Connections
+	label := "ConectarNoVinizao"
+	_, err = co.CreateConnection(label)
+	if err != nil {
 		fmt.Println(err.Error())
 	}
 
-	time.Sleep(30 * time.Second)
+	// wallet.AcceptConnection(label, inv)
 
-	if err := co.RemoveDIDKey("key3-authentication", 0); err != nil {
+	time.Sleep(15 * time.Second)
+
+	if err := co.DeactivateConnection(label); err != nil {
 		fmt.Println(err.Error())
 	}
 	/*
-			connID, inv, err := co.CreateConnection("Conectar no vini")
-			if err != nil {
-				fmt.Println(err.Error())
-			}
-
-			wallet.AcceptConnection("comer o vini", inv)
-
-			time.Sleep(15 * time.Second)
-
-			// if err := co.DeactivateConnection(connID); err != nil {
-			// fmt.Println(err.Error())
-			// }
-
 			schema := json.RawMessage(`
 		    {
 		        "$id": "https://example.com/driving-license-1.0",

@@ -90,9 +90,6 @@ func (co *InstitutionController) AddKeyToDID(pkPurpose KeyPurpose) error {
 		return err
 	}
 
-	json, _ := json.MarshalIndent(payload, "", " ")
-	fmt.Println(string(json))
-
 	if err := co.cloudAgentAPI.UpdateDID(payload, co.institutionDIDPrism); err != nil {
 		return err
 	}
@@ -172,6 +169,10 @@ func (co *InstitutionController) DeactivateConnection(label string) error {
 	delete(co.connections, label)
 
 	return nil
+}
+
+func (co *InstitutionController) RetrieveConnections() map[string]ssi.ConnectionID {
+	return co.connections
 }
 
 func (co *InstitutionController) CreateSchema(schemaName string, schema json.RawMessage) error {
