@@ -22,31 +22,24 @@ func NewCloudAgentAPI(agentURL *url.URL) *CloudAgentAPI {
 	}
 }
 
+// Registra e publica um did para a instituicao
 func (ca *CloudAgentAPI) CreateDID(payload Payload) (DIDPrism, error) {
-	postBody, err := toIOReader(payload)
+	longFormDID, err := registerDID(payload, ca.formattedURL)
 	if err != nil {
 		return "", err
 	}
-	respReg, err := http.Post(ca.formattedURL+"/did-registrar/dids",
-		"application/json", postBody)
+
+	did, err := ca.PublishDID(longFormDID)
 	if err != nil {
-		return "", err
-	}
-	defer respReg.Body.Close()
-
-	if respReg.StatusCode != http.StatusCreated {
-		body, _ := io.ReadAll(respReg.Body)
-		return "", errors.New("registration failed: status=" + respReg.Status + "body=" + string(body))
+		return "", nil
 	}
 
-	var didRegResponse didRegResponse
-	if err := json.NewDecoder(respReg.Body).Decode(&didRegResponse); err != nil {
-		return "", err
-	}
-	longFormDID := didRegResponse.LongFormDID
+	return did, nil
+}
 
+func (ca *CloudAgentAPI) PublishDID(longFormDID LongFormDIDPrism) (DIDPrism, error) {
 	respPub, err := http.Post(ca.formattedURL+"/did-registrar/dids/"+longFormDID+"/publications",
-		"application/json", postBody)
+		"application/json", nil)
 	if err != nil {
 		return "", err
 	}
@@ -64,7 +57,6 @@ func (ca *CloudAgentAPI) CreateDID(payload Payload) (DIDPrism, error) {
 	did := DIDPrism(didPubResponse.ScheduledOperation.DIDRef)
 
 	return did, nil
-
 }
 
 func (ca *CloudAgentAPI) ResolveDID(did DIDPrism) (DIDPrismDocument, error) {
@@ -251,4 +243,9 @@ func (ca *CloudAgentAPI) CreateProofRequest(payload Payload) (PresentationID, er
 	}
 
 	return proofReqRes.PresentationID, nil
+}
+
+func (ca *CloudAgentAPI) AcceptProofRequest(payload Payload, presID PresentationID) error {
+	err := acceptProofRequest(payload, presID, ca.formattedURL)
+	return err
 }

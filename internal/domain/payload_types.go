@@ -125,3 +125,8 @@ type proofRequestPayload struct {
 	Proofs       []schemaCredential `json:"proofs"`
 	Options      options            `json:"options"`
 }
+
+type proofRequestAcceptancePayload struct {
+	Action  string       `json:"action"`
+	ProofID ssi.RecordID `json:"proofId"`
+}

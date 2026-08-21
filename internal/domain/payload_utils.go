@@ -95,7 +95,7 @@ func newOfferAcceptancePayload(didPrism ssi.DIDPrism) offerAcceptancePayload {
 	}
 }
 
-func newProofRequest(goal string, connID ssi.ConnectionID, schemaID ssi.SchemaID, did ssi.DIDPrism) proofRequestPayload {
+func newProofRequestPayload(goal string, connID ssi.ConnectionID, schemaID ssi.SchemaID, did ssi.DIDPrism) proofRequestPayload {
 	schCred := []schemaCredential{}
 	return proofRequestPayload{
 		Goal:         goal,
@@ -105,5 +105,12 @@ func newProofRequest(goal string, connID ssi.ConnectionID, schemaID ssi.SchemaID
 			Challenge: uuid.NewString(),
 			Domain:    did,
 		},
+	}
+}
+
+func newProofRequestAcceptancePayload(recID ssi.RecordID) proofRequestAcceptancePayload {
+	return proofRequestAcceptancePayload{
+		Action:  "request-accept",
+		ProofID: recID,
 	}
 }

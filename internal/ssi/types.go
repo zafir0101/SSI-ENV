@@ -5,6 +5,7 @@ type Payload = any
 // Alias que podem ser extensíveis para structs com verificação
 // a partir de regex
 type DIDPrism = string
+type LongFormDIDPrism = string
 
 type InvitationOOB = string
 type ConnectionID = string

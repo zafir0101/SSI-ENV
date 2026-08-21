@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -20,6 +21,32 @@ func toIOReader(payload Payload) (io.Reader, error) {
 	postBodyReader := bytes.NewBuffer(postBodyJSON)
 
 	return postBodyReader, nil
+}
+
+func registerDID(payload Payload, agentURL string) (LongFormDIDPrism, error) {
+	postBody, err := toIOReader(payload)
+	if err != nil {
+		return "", err
+	}
+	respReg, err := http.Post(agentURL+"/did-registrar/dids",
+		"application/json", postBody)
+	if err != nil {
+		return "", err
+	}
+	defer respReg.Body.Close()
+
+	if respReg.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(respReg.Body)
+		return "", errors.New("registration failed: status=" + respReg.Status + "body=" + string(body))
+	}
+
+	var didRegResponse didRegResponse
+	if err := json.NewDecoder(respReg.Body).Decode(&didRegResponse); err != nil {
+		return "", err
+	}
+	longFormDID := didRegResponse.LongFormDID
+
+	return longFormDID, nil
 }
 
 func createConnection(payload Payload, agentURL string) (ConnectionID, InvitationOOB, error) {
@@ -134,6 +161,26 @@ func acceptCredentialOffer(payload Payload, recID RecordID, agentURL string) err
 	}
 
 	resp, err := http.Post(agentURL+"/issue-credentials/records/"+recID+"/accept-offer",
+		"application/json", postBody)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("acceptance failed: status=%d body=%s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+func acceptProofRequest(payload Payload, presID PresentationID, agentURL string) error {
+	postBody, err := toIOReader(payload)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.Post(agentURL+"/present-proof/presentations/"+presID,
 		"application/json", postBody)
 	if err != nil {
 		return err

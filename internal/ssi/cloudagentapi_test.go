@@ -59,7 +59,7 @@ func TestCrudDID(t *testing.T) {
 	// fmt.Println(err.Error())
 	// }
 
-	connID, inv, err := co.CreateConnection("")
+	connID, inv, err := co.CreateConnection("Conectar no vini")
 	if err != nil {
 		fmt.Println(err.Error())
 	}
