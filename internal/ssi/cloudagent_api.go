@@ -22,7 +22,6 @@ func NewCloudAgentAPI(agentURL *url.URL) *CloudAgentAPI {
 	}
 }
 
-// Registra e publica um did para a instituicao
 func (ca *CloudAgentAPI) CreateDID(payload Payload) (DIDPrism, error) {
 	longFormDID, err := registerDID(payload, ca.formattedURL)
 	if err != nil {
@@ -31,7 +30,7 @@ func (ca *CloudAgentAPI) CreateDID(payload Payload) (DIDPrism, error) {
 
 	did, err := ca.PublishDID(longFormDID)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 
 	return did, nil
@@ -130,30 +129,16 @@ func (ca *CloudAgentAPI) DeactivateDID(did DIDPrism) error {
 }
 
 func (ca *CloudAgentAPI) CreateConnection(payload Payload) (ConnectionID, InvitationOOB, error) {
-	connId, invOOB, err := createConnection(payload, ca.formattedURL)
-	if err != nil {
-		return "", "", err
-	}
-
-	return connId, invOOB, nil
+	return createConnection(payload, ca.formattedURL)
 }
 
 func (ca *CloudAgentAPI) AcceptConnection(payload Payload) (ConnectionID, error) {
-	connId, err := acceptConnection(payload, ca.formattedURL)
-	if err != nil {
-		return "", err
-	}
-
-	return connId, nil
+	return acceptConnection(payload, ca.formattedURL)
 }
 
 // Limitado a convites enviados mas não respondidos.
 func (ca *CloudAgentAPI) DeactivateConnection(connID ConnectionID) error {
-	if err := deactivateConnection(connID, ca.formattedURL); err != nil {
-		return err
-	}
-
-	return nil
+	return deactivateConnection(connID, ca.formattedURL)
 }
 
 func (ca *CloudAgentAPI) CreateSchema(payload Payload) (SchemaID, error) {
@@ -167,6 +152,7 @@ func (ca *CloudAgentAPI) CreateSchema(payload Payload) (SchemaID, error) {
 	if err != nil {
 		return "", err
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(resp.Body)
@@ -182,42 +168,38 @@ func (ca *CloudAgentAPI) CreateSchema(payload Payload) (SchemaID, error) {
 	return schemaID, nil
 }
 
-func (ca *CloudAgentAPI) CreateCredentialOffer(payload Payload) error {
+func (ca *CloudAgentAPI) CreateCredentialOffer(payload Payload) (RecordID, error) {
 	postBody, err := toIOReader(payload)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	resp, err := http.Post(ca.formattedURL+"/issue-credentials/credential-offers",
 		"application/json", postBody)
 	if err != nil {
-		return err
+		return "", err
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(resp.Body)
-		return errors.New("credendial offer creation failed: status=" + resp.Status + "body=" + string(body))
+		return "", errors.New("credendial offer creation failed: status=" + resp.Status + "body=" + string(body))
 	}
 
-	return nil
+	var content credentialOfferContent
+	if err := json.NewDecoder(resp.Body).Decode(&content); err != nil {
+		return "", err
+	}
+
+	return content.RecordID, nil
 }
 
-func (ca *CloudAgentAPI) RetrieveCredentialOffers() ([]RecordID, error) {
-	recordIDs, err := retrieveCredentialOffers(ca.formattedURL)
-	if err != nil {
-		return nil, err
-	}
-
-	return recordIDs, nil
+func (ca *CloudAgentAPI) ListCredentialOffers() ([]RecordID, []CredentialStatus, error) {
+	return listCredentialOffers(ca.formattedURL)
 }
 
 func (ca *CloudAgentAPI) AcceptCredentialOffer(payload Payload, recID RecordID) error {
-	err := acceptCredentialOffer(payload, recID, ca.formattedURL)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return acceptCredentialOffer(payload, recID, ca.formattedURL)
 }
 
 func (ca *CloudAgentAPI) CreateProofRequest(payload Payload) (PresentationID, error) {
@@ -231,13 +213,14 @@ func (ca *CloudAgentAPI) CreateProofRequest(payload Payload) (PresentationID, er
 	if err != nil {
 		return "", err
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(resp.Body)
 		return "", errors.New("proof request creation failed: status=" + resp.Status + "body=" + string(body))
 	}
 
-	var proofReqRes proofRequestResponse
+	var proofReqRes proofRequestContent
 	if err := json.NewDecoder(resp.Body).Decode(&proofReqRes); err != nil {
 		return "", err
 	}
@@ -245,7 +228,10 @@ func (ca *CloudAgentAPI) CreateProofRequest(payload Payload) (PresentationID, er
 	return proofReqRes.PresentationID, nil
 }
 
+func (ca *CloudAgentAPI) ListProofRequestsData() ([]PresentationID, []ProofRequestStatus, error) {
+	return listProofRequestsData(ca.formattedURL)
+}
+
 func (ca *CloudAgentAPI) AcceptProofRequest(payload Payload, presID PresentationID) error {
-	err := acceptProofRequest(payload, presID, ca.formattedURL)
-	return err
+	return acceptProofRequest(payload, presID, ca.formattedURL)
 }

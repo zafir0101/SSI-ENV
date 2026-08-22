@@ -1,7 +1,5 @@
 package domain
 
-// Considerar realizar as chamadas das funcoes com labels, assim os IDs sao obtidos atraves dos hash maps
-// Considerar realizar os retornos das funcoes sem IDs, pois os hash maps serao reiniciados toda exec.
 import (
 	"encoding/json"
 	"errors"
@@ -11,30 +9,82 @@ import (
 )
 
 type InstitutionController struct {
-	cloudAgentAPI       *ssi.CloudAgentAPI
+	cloudAgentAPI *ssi.CloudAgentAPI
+
 	institutionDIDPrism ssi.DIDPrism
-	PublishedsDIDs      map[string]ssi.DIDPrism     // Sera serializado, apenas DIDs publicados na máquina
-	connections         map[string]ssi.ConnectionID // Será serializado, apenas connections realizados na maquina
-	schemas             map[string]ssi.SchemaID     // Será serializado, apenas schemas criados na maquina
-	Credentials         map[string]ssi.RecordID
-	// CredentialOffersReceived
-	// CredentialOffersSent
-	// ProvenPresentations
+	publishedsDIDs      map[string]ssi.DIDPrism // Sera serializado, apenas DIDs publicados na máquina
+
+	connections map[string]ssi.ConnectionID // Será serializado, apenas connections realizados na maquina
+
+	schemas map[string]ssi.SchemaID // Será serializado, apenas schemas criados na maquina
+
+	credentials              map[string]ssi.RecordID
+	credentialOffersReceived []ssi.RecordID // Limitação: Não consegue compartilhar uma label para a oferta
+	credentialOffersSent     map[string]ssi.RecordID
+
+	proofRequestsAccepted           map[string]ssi.PresentationID
+	proofRequestsAcceptedByExternal []ssi.RecordID
+	proofRequestsReceived           []ssi.RecordID // Limitação: Não consegue compartilhar uma label para a requisicao
+	proofRequestsSent               map[string]ssi.PresentationID
 
 	num_keys int
 }
 
 func NewController(cloudAgentAPI *ssi.CloudAgentAPI) *InstitutionController {
 	return &InstitutionController{
-		cloudAgentAPI:  cloudAgentAPI,
-		PublishedsDIDs: make(map[string]ssi.DIDPrism),
-		connections:    make(map[string]ssi.ConnectionID),
-		schemas:        make(map[string]ssi.SchemaID),
-		Credentials:    make(map[string]ssi.RecordID),
+		cloudAgentAPI:         cloudAgentAPI,
+		publishedsDIDs:        make(map[string]ssi.DIDPrism),
+		connections:           make(map[string]ssi.ConnectionID),
+		schemas:               make(map[string]ssi.SchemaID),
+		credentials:           make(map[string]ssi.RecordID),
+		credentialOffersSent:  make(map[string]ssi.RecordID),
+		proofRequestsAccepted: make(map[string]ssi.PresentationID),
+		proofRequestsSent:     make(map[string]ssi.PresentationID),
 	}
 }
 
-// Considerar retirar o id e purpose e gerar 2 chaves padrao. Caso o algoritmo da chave inclua o id, gerar um nonce
+func (co *InstitutionController) RefreshOffersReceived() error {
+	recordIDs, credentialStatus, err := co.cloudAgentAPI.ListCredentialOffers()
+	if err != nil {
+		return err
+	}
+
+	clear(co.credentialOffersReceived)
+	co.credentialOffersReceived = co.credentialOffersReceived[:0]
+
+	for i, credStatus := range credentialStatus {
+		if credStatus == "OfferReceived" {
+			co.credentialOffersReceived = append(co.credentialOffersReceived, recordIDs[i])
+		}
+	}
+
+	return nil
+}
+
+func (co *InstitutionController) RefreshProofRequestsReceived() error {
+	presentationIDs, proofReqStatus, err := co.cloudAgentAPI.ListProofRequestsData()
+	if err != nil {
+		return err
+	}
+
+	clear(co.proofRequestsReceived)
+	co.proofRequestsReceived = co.proofRequestsReceived[:0]
+	clear(co.proofRequestsAcceptedByExternal)
+	co.proofRequestsAcceptedByExternal = co.proofRequestsAcceptedByExternal[:0]
+
+	for i, proofReqStatus := range proofReqStatus {
+		if proofReqStatus == "RequestReceived" {
+			co.proofRequestsReceived = append(co.proofRequestsReceived, presentationIDs[i])
+			continue
+		}
+		if proofReqStatus == "PresentationVerified" {
+			co.proofRequestsAcceptedByExternal = append(co.proofRequestsAcceptedByExternal, presentationIDs[i])
+		}
+	}
+
+	return nil
+}
+
 func (co *InstitutionController) CreateDID() error {
 	pksID := []string{"key1-authentication", "key2-assertionMethod"}
 	pksPurpose := []KeyPurpose{Authentication, AssertionMethod}
@@ -58,10 +108,10 @@ func (co *InstitutionController) CreateDID() error {
 func (co *InstitutionController) PublishDID(label string, didLongForm ssi.LongFormDIDPrism) error {
 	did, err := co.cloudAgentAPI.PublishDID(didLongForm)
 	if err != nil {
-		return nil
+		return err
 	}
 
-	co.PublishedsDIDs[label] = did
+	co.publishedsDIDs[label] = did
 	return nil
 }
 
@@ -148,7 +198,7 @@ func (co *InstitutionController) AcceptConnection(label string, invOOB ssi.Invit
 
 	connID, err := co.cloudAgentAPI.AcceptConnection(payload)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	co.connections[label] = connID
@@ -170,10 +220,6 @@ func (co *InstitutionController) DeactivateConnection(label string) error {
 	return nil
 }
 
-func (co *InstitutionController) RetrieveConnections() map[string]ssi.ConnectionID {
-	return co.connections
-}
-
 func (co *InstitutionController) CreateSchema(schemaName string, schema json.RawMessage) error {
 	payload := newSchemaCreationPayload(schemaName, co.institutionDIDPrism, schema)
 
@@ -187,46 +233,40 @@ func (co *InstitutionController) CreateSchema(schemaName string, schema json.Raw
 	return nil
 }
 
-func (co *InstitutionController) RetrieveSchemas() map[string]ssi.SchemaID {
-	return co.schemas
-}
+func (co *InstitutionController) CreateCredentialOffer(offerLabel string, claims json.RawMessage,
+	connLabel string, schemaID ssi.SchemaID) error {
+	connID := co.connections[connLabel]
+	if connID == "" {
+		return errors.New("No connections with label " + connLabel)
+	}
 
-func (co *InstitutionController) CreateCredentialOffer(claims json.RawMessage,
-	connID ssi.ConnectionID, schemaID ssi.SchemaID) error {
 	payload := newCredentialOfferPayload(claims, co.institutionDIDPrism, connID, schemaID)
 
-	if err := co.cloudAgentAPI.CreateCredentialOffer(payload); err != nil {
+	recordID, err := co.cloudAgentAPI.CreateCredentialOffer(payload)
+	if err != nil {
 		return err
 	}
+
+	co.credentialOffersSent[offerLabel] = recordID
 
 	return nil
 }
 
-// TODO: Toda vez que voce recupera as ofertas atualizar um map que contem o objetivo
-// da credencial (facilita o usuario saber qual credencial manusear). Executar essa funcao todo
-// comeco do programa para obter o estado atual (pode ser atraves de uma funcao start). Implementar
-// um objetivo para ofertas de credenciais e uma funcao que visualiza uma oferta de credencial.
-//
-// Sera dividia em credencias recebidas (holder) e credencias enviadas (issuer)
-func (co *InstitutionController) RetrieveCredentialOffers() ([]ssi.RecordID, error) {
-	recordsID, err := co.cloudAgentAPI.RetrieveCredentialOffers()
-	if err != nil {
-		return nil, err
-	}
-
-	if len(recordsID) == 0 {
-		return nil, errors.New("No credential offers")
-	}
-
-	return recordsID, err
-}
-
-func (co *InstitutionController) AcceptCredentialOffer(recID ssi.RecordID) error {
+func (co *InstitutionController) AcceptCredentialOffer(credentialLabel string, recID ssi.RecordID) error {
 	payload := newOfferAcceptancePayload(co.institutionDIDPrism)
 
 	if err := co.cloudAgentAPI.AcceptCredentialOffer(payload, recID); err != nil {
 		return err
 	}
+
+	for i, offer := range co.credentialOffersReceived {
+		if offer == recID {
+			co.credentialOffersReceived = append(co.credentialOffersReceived[:i], co.credentialOffersReceived[i+1:]...)
+			break
+		}
+	}
+
+	co.credentials[credentialLabel] = recID
 
 	return nil
 }
@@ -234,31 +274,78 @@ func (co *InstitutionController) AcceptCredentialOffer(recID ssi.RecordID) error
 // O Identus possui uma limitação: O holder sempre recebe uma requisição aberta, não sabendo exatamente
 // o que deve apresentar. Isso porque o campo proof é settado para empty na implementação do identus. Não
 // sei exatamente se o dado do campo proof é usado internamente para validar a apresentação do holder.
-func (co *InstitutionController) CreateProofRequest(goal string, connLabel string,
-	schemaID ssi.SchemaID) (ssi.PresentationID, error) {
+func (co *InstitutionController) CreateProofRequest(proofReqLabel string, connLabel string,
+	schemaID ssi.SchemaID) error {
 	connID := co.connections[connLabel]
 	if connID == "" {
-		return "", errors.New("No connections with label " + connLabel)
+		return errors.New("No connections with label " + connLabel)
 	}
 
-	payload := newProofRequestPayload(goal, connID, schemaID, co.institutionDIDPrism)
+	payload := newProofRequestPayload(proofReqLabel, connID, schemaID, co.institutionDIDPrism)
 
 	presentationID, err := co.cloudAgentAPI.CreateProofRequest(payload)
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	return presentationID, nil
+	co.proofRequestsSent[proofReqLabel] = presentationID
+
+	return nil
 }
 
-func (co *InstitutionController) AcceptProofRequest(credentialLabel string, presID ssi.PresentationID) error {
-	recID := co.Credentials[credentialLabel]
+func (co *InstitutionController) AcceptProofRequest(proofReqLabel string, credentialLabel string, presID ssi.PresentationID) error {
+	recID := co.credentials[credentialLabel]
 	if recID == "" {
-		return errors.New("No credentials with label " + recID)
+		return errors.New("No credentials with label " + credentialLabel)
 	}
 
 	payload := newProofRequestAcceptancePayload(recID)
 
-	return co.cloudAgentAPI.AcceptProofRequest(payload, presID)
+	if err := co.cloudAgentAPI.AcceptProofRequest(payload, presID); err != nil {
+		return err
+	}
 
+	for i, request := range co.proofRequestsReceived {
+		if request == presID {
+			co.proofRequestsReceived = append(co.proofRequestsReceived[:i], co.proofRequestsReceived[i+1:]...)
+			break
+		}
+	}
+
+	co.proofRequestsAccepted[proofReqLabel] = presID
+
+	return nil
+}
+
+// Getters
+func (co *InstitutionController) PublishDIDs() map[string]ssi.LongFormDIDPrism {
+	return co.publishedsDIDs
+}
+
+func (co *InstitutionController) Connections() map[string]ssi.ConnectionID {
+	return co.connections
+}
+
+func (co *InstitutionController) Schemas() map[string]ssi.SchemaID {
+	return co.schemas
+}
+
+func (co *InstitutionController) CredentialOffersSent() map[string]ssi.RecordID {
+	return co.credentialOffersSent
+}
+
+func (co *InstitutionController) CrendetialOffersReceived() []ssi.RecordID {
+	return co.credentialOffersReceived
+}
+
+func (co *InstitutionController) Credentials() map[string]ssi.RecordID {
+	return co.credentials
+}
+
+func (co *InstitutionController) ProofRequestsSent() map[string]ssi.PresentationID {
+	return co.proofRequestsSent
+}
+
+func (co *InstitutionController) ProofRequestsReceived() []ssi.PresentationID {
+	return co.proofRequestsReceived
 }

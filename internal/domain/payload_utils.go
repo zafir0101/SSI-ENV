@@ -109,6 +109,6 @@ func newProofRequestPayload(goal string, connID ssi.ConnectionID, schemaID ssi.S
 func newProofRequestAcceptancePayload(recID ssi.RecordID) proofRequestAcceptancePayload {
 	return proofRequestAcceptancePayload{
 		Action:  "request-accept",
-		ProofID: recID,
+		ProofID: []string{recID},
 	}
 }

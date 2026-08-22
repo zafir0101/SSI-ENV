@@ -1,31 +1,40 @@
 package ssi
 
+// Alias for export
 type Payload = any
 
-// Alias que podem ser extensíveis para structs com verificação
-// a partir de regex
 type DIDPrism = string
 type LongFormDIDPrism = string
 
 type InvitationOOB = string
 type ConnectionID = string
 
-type PresentationID = string
+type CredentialStatus = string
 type RecordID = string
+
+type ProofRequestStatus = string
+type PresentationID = string
+
 type SchemaID = string
 
 // Types for parsing a proof request creation response
+type proofRequestContent struct {
+	PresentationID PresentationID     `json:"presentationId"`
+	Status         ProofRequestStatus `json:"status"`
+}
+
 type proofRequestResponse struct {
-	PresentationID PresentationID `json:"presentationId"`
+	Contents []proofRequestContent `json:"contents"`
 }
 
 // Types to parse a retrieving credential offers response
-type content struct {
-	RecordID RecordID `json:"recordId"`
+type credentialOfferContent struct {
+	RecordID RecordID         `json:"recordId"`
+	Status   CredentialStatus `json:"protocolState"`
 }
 
 type credentialOffersRetrievalResponse struct {
-	Contents []content `json:"contents"`
+	Contents []credentialOfferContent `json:"contents"`
 }
 
 // Types to parse a schema creation response

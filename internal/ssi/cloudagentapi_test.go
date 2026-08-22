@@ -69,25 +69,22 @@ func TestCrudDID(t *testing.T) {
 	*/
 
 	// Teste de Connections
-	/*
-		label := "ConectarNoVinizao"
-		_, err = co.CreateConnection(label)
-		if err != nil {
-			fmt.Println(err.Error())
-		}
+	connLabel := "ConectarNoVinizao"
+	inv, err := co.CreateConnection(connLabel)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
 
-		// wallet.AcceptConnection(label, inv)
+	time.Sleep(15 * time.Second)
 
-		time.Sleep(15 * time.Second)
+	wallet.AcceptConnection(connLabel, inv)
 
-		if err := co.DeactivateConnection(label); err != nil {
-			fmt.Println(err.Error())
-		}
-	*/
+	// if err := co.DeactivateConnection(label); err != nil {
+	// fmt.Println(err.Error())
+	// }
 
 	// Teste para Schemas
-	/*
-		schema := json.RawMessage(`
+	schema := json.RawMessage(`
 			    {
 			        "$id": "https://example.com/driving-license-1.0",
 			        "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -101,41 +98,77 @@ func TestCrudDID(t *testing.T) {
 			        "additionalProperties": false
 			    }`)
 
-		label := "Credencial de Cortesã do vini"
-		if err := co.CreateSchema(label, schema); err != nil {
-			fmt.Println(err.Error())
-		}
+	label := "Credencial de Cortesã do vini"
+	if err := co.CreateSchema(label, schema); err != nil {
+		fmt.Println(err.Error())
+	}
 
-		fmt.Println(co.RetrieveSchemas()[label])
-	*/
+	// fmt.Println(co.RetrieveSchemas()[label])
 
-	/*
-			time.Sleep(30 * time.Second)
+	time.Sleep(15 * time.Second)
 
-			claims := json.RawMessage(`{
+	// Teste para CreateCredentialOffer
+	claims := json.RawMessage(`{
 		    "emailAddress": "zeca.galhao@gmail.com",
 		    "givenName": "Zeca Galhao",
 		    "familyName": "galhao"
 		  }`)
-			if err := co.CreateCredentialOffer(claims, connID, schemaID); err != nil {
-				fmt.Println(err.Error())
-			}
+	offerlabel := "Para provar a pureza do vini"
+	if err := co.CreateCredentialOffer(offerlabel, claims, connLabel, co.Schemas()[label]); err != nil {
+		fmt.Println(err.Error())
+	}
 
-			// O edge agent vai utilizar o longform (nao ira publicar o did)
-			_, _ = wallet.CreateDID(pksID, pksPurpose)
+	time.Sleep(15 * time.Second)
 
-			time.Sleep(30 * time.Second)
+	// Teste para receber oferta de credencial
+	// O edge agent vai utilizar o longform (nao ira publicar o did)
+	wallet.CreateDID()
 
-			recordID, _ := wallet.RetrieveCredentialOffers()
-			if err := wallet.AcceptCredentialOffer(recordID[0]); err != nil {
-				fmt.Println(err.Error())
-			}
+	time.Sleep(30 * time.Second)
 
-			presentationID, err := co.CreateProofRequest("Provar a pureza do vini", connID, schemaID)
-			if err != nil {
-				fmt.Println(err.Error())
-			}
+	var recIDs []string
+	for i := 0; i < 10; i++ {
+		err := wallet.RefreshOffersReceived()
+		if err != nil && err.Error() != "No credential offers" {
+			t.Fatalf("refresh offers failed: %v", err) // erro de verdade, para
+		}
+		recIDs = wallet.CrendetialOffersReceived()
+		if len(recIDs) > 0 {
+			break
+		}
+		time.Sleep(3 * time.Second)
+	}
 
-			fmt.Println(presentationID)
-	*/
+	credlabel := "Credencial que vini é puro"
+	if err := wallet.AcceptCredentialOffer(credlabel, recIDs[0]); err != nil {
+		fmt.Println(err.Error())
+	}
+
+	// Teste para apresentar prova de credencial
+	prooflabel := "Provar a pureza do vini"
+	err = co.CreateProofRequest(prooflabel, connLabel, co.Schemas()[label])
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+
+	// Teste para aceitar a apresentação de prova de credencial
+	var presIDs []string
+	for i := 0; i < 10; i++ {
+		if err := wallet.RefreshProofRequestsReceived(); err != nil {
+			t.Fatalf("refresh proof requests failed: %v", err)
+		}
+		presIDs = wallet.ProofRequestsReceived()
+		if len(presIDs) > 0 {
+			break
+		}
+		time.Sleep(3 * time.Second)
+	}
+	if len(presIDs) == 0 {
+		t.Fatal("nenhuma proof request recebida após 30s")
+	}
+
+	err = wallet.AcceptProofRequest(prooflabel, credlabel, presIDs[0])
+	if err != nil {
+		fmt.Println(err.Error())
+	}
 }

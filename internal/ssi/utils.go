@@ -129,29 +129,34 @@ func deactivateConnection(connID ConnectionID, agentURL string) error {
 	return nil
 }
 
-func retrieveCredentialOffers(agentURL string) ([]RecordID, error) {
+func listCredentialOffers(agentURL string) ([]RecordID, []CredentialStatus, error) {
 	resp, err := http.Get(agentURL + "/issue-credentials/records")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("retrieving failed: status=%d body=%s", resp.StatusCode, string(body))
+		return nil, nil, fmt.Errorf("retrieving failed: status=%d body=%s", resp.StatusCode, string(body))
 	}
 
 	var offerResponse credentialOffersRetrievalResponse
 	if err := json.NewDecoder(resp.Body).Decode(&offerResponse); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var recordIDs []RecordID
+	var credentialStatus []CredentialStatus
 	for _, content := range offerResponse.Contents {
+		if content.RecordID == "" || content.Status == "" {
+			return nil, nil, fmt.Errorf("retrieving failed. An element of the content has been corrupted")
+		}
 		recordIDs = append(recordIDs, content.RecordID)
+		credentialStatus = append(credentialStatus, content.Status)
 	}
 
-	return recordIDs, nil
+	return recordIDs, credentialStatus, nil
 }
 
 func acceptCredentialOffer(payload Payload, recID RecordID, agentURL string) error {
@@ -165,6 +170,7 @@ func acceptCredentialOffer(payload Payload, recID RecordID, agentURL string) err
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -174,17 +180,59 @@ func acceptCredentialOffer(payload Payload, recID RecordID, agentURL string) err
 	return nil
 }
 
+func listProofRequestsData(agentURL string) ([]PresentationID, []ProofRequestStatus, error) {
+	resp, err := http.Get(agentURL + "/present-proof/presentations")
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, nil, fmt.Errorf("retrieving failed: status=%d body=%s", resp.StatusCode, string(body))
+	}
+
+	var proofReqResponse proofRequestResponse
+	if err := json.NewDecoder(resp.Body).Decode(&proofReqResponse); err != nil {
+		return nil, nil, err
+	}
+
+	var presentationID []PresentationID
+	var proofReqStatus []ProofRequestStatus
+	for _, content := range proofReqResponse.Contents {
+		if content.PresentationID == "" || content.Status == "" {
+			return nil, nil, fmt.Errorf("retrieving failed. An element of the content has been corrupted")
+		}
+		presentationID = append(presentationID, content.PresentationID)
+		proofReqStatus = append(proofReqStatus, content.Status)
+	}
+
+	return presentationID, proofReqStatus, nil
+}
+
 func acceptProofRequest(payload Payload, presID PresentationID, agentURL string) error {
 	postBody, err := toIOReader(payload)
 	if err != nil {
 		return err
 	}
 
-	resp, err := http.Post(agentURL+"/present-proof/presentations/"+presID,
-		"application/json", postBody)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, agentURL+"/present-proof/presentations/"+presID,
+		postBody)
 	if err != nil {
 		return err
 	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)

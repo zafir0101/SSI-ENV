@@ -123,6 +123,6 @@ type proofRequestPayload struct {
 }
 
 type proofRequestAcceptancePayload struct {
-	Action  string       `json:"action"`
-	ProofID ssi.RecordID `json:"proofId"`
+	Action  string         `json:"action"`
+	ProofID []ssi.RecordID `json:"proofId"`
 }
